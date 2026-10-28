@@ -23,6 +23,9 @@ export const SettingsSchema = Schema.Struct({
   debounceMs: Schema.Number,
   maxChars: Schema.Number,
   dropSourceLang: Schema.Boolean,
+  tuiKeyClipboard: Schema.optional(Schema.String),
+  tuiKeyLastTurn: Schema.optional(Schema.String),
+  tuiKeyPanel: Schema.optional(Schema.String),
 })
 
 export type StoredSettings = typeof SettingsSchema.Type
@@ -43,6 +46,9 @@ export interface PluginSettings {
   debounceMs: number
   maxChars: number
   dropSourceLang: boolean
+  tuiKeyClipboard: string
+  tuiKeyLastTurn: string
+  tuiKeyPanel: string
 }
 
 export const DEFAULT_SETTINGS: PluginSettings = {
@@ -61,6 +67,9 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   debounceMs: 140,
   maxChars: 1500,
   dropSourceLang: true,
+  tuiKeyClipboard: "alt+t",
+  tuiKeyLastTurn: "alt+shift+t",
+  tuiKeyPanel: "alt+p",
 }
 
 export interface Preset {

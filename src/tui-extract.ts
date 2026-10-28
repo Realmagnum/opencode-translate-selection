@@ -63,3 +63,21 @@ export function formatTransOutputMarkdown(output: TransOutput, originalText?: st
 
   return parts.join("\n\n---\n\n")
 }
+
+/**
+ * Formats a keybinding string into an uppercase, readable badge (e.g. "alt+t" -> "Alt+T").
+ */
+export function formatKey(key?: string): string {
+  if (!key) return ""
+  return key
+    .split("+")
+    .map((part) => {
+      const p = part.trim().toLowerCase()
+      if (p === "alt") return "Alt"
+      if (p === "ctrl") return "Ctrl"
+      if (p === "shift") return "Shift"
+      if (p === "cmd" || p === "super") return "Cmd"
+      return p.toUpperCase()
+    })
+    .join("+")
+}

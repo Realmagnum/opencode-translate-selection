@@ -1,3 +1,6 @@
+import path from "node:path"
+import os from "node:os"
+import fs from "node:fs"
 import { Plugin, SettingsPage, Slot, Store } from "@opencode/plugin/gui"
 import type { Persisted } from "@opencode/plugin/gui"
 import { Translate } from "./contract"
@@ -5,6 +8,12 @@ import { SelectionPopup } from "./popup"
 import { translate } from "./translate"
 import { DEFAULT_SETTINGS, SettingsSchema, type PluginSettings, type StoredSettings } from "./settings"
 import { SettingsView } from "./settings-view"
+
+function getTuiSettingsPath(): string {
+  const home = os.homedir()
+  const base = process.env.XDG_STATE_HOME || path.join(home, ".local", "state")
+  return path.join(base, "opencode", "latest", "tui", "plugin.translate-selection.tui-settings.json")
+}
 
 function TranslationSurface(props: {
   store: Persisted<StoredSettings>
@@ -35,18 +44,61 @@ function TranslationSurface(props: {
   )
 }
 
-function SettingsTab(props: { store: Persisted<StoredSettings> }) {
+function SettingsTab(props: { store: Persisted<StoredSettings>; client: ReturnType<any> }) {
   const settings = (): PluginSettings => ({ ...DEFAULT_SETTINGS, ...props.store.value })
+
+  // Synchronize on mount if TUI settings exist
+  props.client
+    .getTuiSettings({})
+    .then((res: any) => {
+      if (res) {
+        props.store.update((draft) => {
+          if (res.keyClipboard && !draft.tuiKeyClipboard) draft.tuiKeyClipboard = res.keyClipboard
+          if (res.keyLastTurn && !draft.tuiKeyLastTurn) draft.tuiKeyLastTurn = res.keyLastTurn
+          if (res.keyPanel && !draft.tuiKeyPanel) draft.tuiKeyPanel = res.keyPanel
+          return undefined
+        })
+      }
+    })
+    .catch(() => {})
 
   const update = (patch: Partial<PluginSettings>) => {
     props.store.update((draft) => {
       Object.assign(draft, patch)
       return undefined
     })
+
+    // Sync TUI keybindings and target settings to TUI storage file
+    if (
+      patch.tuiKeyClipboard !== undefined ||
+      patch.tuiKeyLastTurn !== undefined ||
+      patch.tuiKeyPanel !== undefined ||
+      patch.targets !== undefined ||
+      patch.engineMode !== undefined
+    ) {
+      props.client
+        .saveTuiSettings({
+          keyClipboard: patch.tuiKeyClipboard ?? settings().tuiKeyClipboard,
+          keyLastTurn: patch.tuiKeyLastTurn ?? settings().tuiKeyLastTurn,
+          keyPanel: patch.tuiKeyPanel ?? settings().tuiKeyPanel,
+          targets: patch.targets ?? settings().targets,
+          engineMode: patch.engineMode ?? settings().engineMode,
+        })
+        .catch(() => {})
+    }
   }
 
   const reset = () => {
     props.store.set(DEFAULT_SETTINGS)
+    props.client
+      .saveTuiSettings({
+        keyClipboard: DEFAULT_SETTINGS.tuiKeyClipboard,
+        keyLastTurn: DEFAULT_SETTINGS.tuiKeyLastTurn,
+        keyPanel: DEFAULT_SETTINGS.tuiKeyPanel,
+        targets: DEFAULT_SETTINGS.targets,
+        engineMode: DEFAULT_SETTINGS.engineMode,
+      })
+      .catch(() => {})
   }
 
   return <SettingsView settings={settings} update={update} reset={reset} />
@@ -98,7 +150,7 @@ export default Plugin.define({
       get title() {
         return ctx.t("settings.title")
       },
-      render: () => <SettingsTab store={ctx.stores.settings} />,
+      render: () => <SettingsTab store={ctx.stores.settings} client={client} />,
     })
   },
   main(ctx) {
@@ -111,6 +163,40 @@ export default Plugin.define({
           log: (level, message, data) =>
             data ? ctx.log.write(level, message, data) : ctx.log.write(level, message),
         }),
+
+      getTuiSettings: async () => {
+        try {
+          const filePath = getTuiSettingsPath()
+          if (fs.existsSync(filePath)) {
+            const raw = fs.readFileSync(filePath, "utf-8")
+            return JSON.parse(raw)
+          }
+        } catch {}
+        return {}
+      },
+
+      saveTuiSettings: async (patch) => {
+        try {
+          const filePath = getTuiSettingsPath()
+          const dir = path.dirname(filePath)
+          if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true })
+          }
+
+          let current: Record<string, any> = {}
+          if (fs.existsSync(filePath)) {
+            try {
+              current = JSON.parse(fs.readFileSync(filePath, "utf-8"))
+            } catch {}
+          }
+
+          const merged = { ...current, ...patch }
+          fs.writeFileSync(filePath, JSON.stringify(merged, null, 2), "utf-8")
+          return { success: true }
+        } catch {
+          return { success: false }
+        }
+      },
     })
   },
 })

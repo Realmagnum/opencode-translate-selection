@@ -1,6 +1,6 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { extractAssistantText, formatTransOutputMarkdown } from "../src/tui-extract.ts"
+import { extractAssistantText, formatTransOutputMarkdown, formatKey } from "../src/tui-extract.ts"
 import type { TransOutput } from "../src/translate.ts"
 
 test("tui-extract: extractAssistantText concatenates text chunks correctly", () => {
@@ -63,4 +63,12 @@ test("tui-extract: formatTransOutputMarkdown includes errors when present", () =
 
   const md = formatTransOutputMarkdown(output)
   assert.match(md, /Error: Network timeout/)
+})
+
+test("tui-extract: formatKey formats combinations into readable labels", () => {
+  assert.equal(formatKey("alt+t"), "Alt+T")
+  assert.equal(formatKey("alt+shift+t"), "Alt+Shift+T")
+  assert.equal(formatKey("ctrl+shift+p"), "Ctrl+Shift+P")
+  assert.equal(formatKey("cmd+y"), "Cmd+Y")
+  assert.equal(formatKey(""), "")
 })

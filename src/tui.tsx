@@ -5,7 +5,7 @@ import type { Context, PanelInput } from "@opencode/plugin/tui/context"
 import type { ScrollBoxRenderable } from "@opentui/core"
 import { readClipboard, writeClipboard } from "./clipboard.ts"
 import { translate, type TransOutput } from "./translate.ts"
-import { getLastAssistantText, formatTransOutputMarkdown } from "./tui-extract.ts"
+import { getLastAssistantText, formatTransOutputMarkdown, formatKey } from "./tui-extract.ts"
 
 const PANEL_NAME = "translate.panel"
 
@@ -14,6 +14,9 @@ export interface TuiSettings {
   engineMode: "auto" | "fast" | "llm"
   llmTimeoutMs: number
   dropSourceLang: boolean
+  keyClipboard?: string
+  keyLastTurn?: string
+  keyPanel?: string
 }
 
 export const DEFAULT_TUI_SETTINGS: TuiSettings = {
@@ -21,7 +24,12 @@ export const DEFAULT_TUI_SETTINGS: TuiSettings = {
   engineMode: "auto",
   llmTimeoutMs: 3500,
   dropSourceLang: true,
+  keyClipboard: "alt+t",
+  keyLastTurn: "alt+shift+t",
+  keyPanel: "alt+p",
 }
+
+export { formatKey }
 
 export interface LatestTranslationState {
   originalText: string
@@ -602,9 +610,10 @@ export default Plugin.define({
 
       if (!textToTranslate) {
         if (isPanelOpen) {
+          const keyName = formatKey(settings.keyClipboard || "alt+t")
           context.ui.toast.show({
             title: "Перевод",
-            message: "Буфер обмена пуст. Скопируйте текст перед нажатием Alt+T.",
+            message: `Буфер обмена пуст. Скопируйте текст перед нажатием ${keyName}.`,
             variant: "warning",
           })
           return
@@ -753,7 +762,11 @@ export default Plugin.define({
      * Action: Configure TUI settings
      */
     async function handleConfig() {
-      const picked = await context.ui.dialog.select<"languages" | "engine" | "reset">({
+      const clipKey = formatKey(settings.keyClipboard || "alt+t")
+      const lastKey = formatKey(settings.keyLastTurn || "alt+shift+t")
+      const panelKey = formatKey(settings.keyPanel || "alt+p")
+
+      const picked = await context.ui.dialog.select<"languages" | "engine" | "hotkeys" | "reset">({
         title: "⚙️ Настройки перевода (TUI)",
         options: [
           {
@@ -767,9 +780,14 @@ export default Plugin.define({
             description: "Auto (Smart Hybrid) / Fast MT (Google) / Session LLM",
           },
           {
+            title: `Горячие клавиши: [${clipKey}, ${lastKey}, ${panelKey}]`,
+            value: "hotkeys",
+            description: "Настроить комбинации клавиш (для Ghostty, iTerm2 и других эмуляторов)",
+          },
+          {
             title: "Сбросить к умолчаниям",
             value: "reset",
-            description: "Вернуть целевые языки и режим к стандартным",
+            description: "Вернуть целевые языки, режим и хоткеи к стандартным",
           },
         ],
       })
@@ -814,6 +832,92 @@ export default Plugin.define({
           })
           context.ui.toast.show({ message: `Режим: ${mode.toUpperCase()}`, variant: "success" })
         }
+      } else if (picked === "hotkeys") {
+        const keyAction = await context.ui.dialog.select<"clipboard" | "last" | "panel" | "reset_keys">({
+          title: "⌨️ Настройка горячих клавиш TUI",
+          options: [
+            {
+              title: `Перевод буфера: [${formatKey(settings.keyClipboard || "alt+t")}]`,
+              value: "clipboard",
+              description: "Комбинация для перевода выделенного/скопированного текста (по умолч.: alt+t)",
+            },
+            {
+              title: `Перевод ответа ассистента: [${formatKey(settings.keyLastTurn || "alt+shift+t")}]`,
+              value: "last",
+              description: "Комбинация для перевода последнего ответа модели (по умолч.: alt+shift+t)",
+            },
+            {
+              title: `Боковая панель: [${formatKey(settings.keyPanel || "alt+p")}]`,
+              value: "panel",
+              description: "Комбинация для открытия/закрытия боковой панели (по умолч.: alt+p)",
+            },
+            {
+              title: "Сбросить хоткеи к умолчаниям",
+              value: "reset_keys",
+              description: "Вернуть alt+t, alt+shift+t, alt+p",
+            },
+          ],
+        })
+
+        if (keyAction === "clipboard") {
+          const val = await context.ui.dialog.prompt({
+            title: "Хоткей: Перевод буфера обмена",
+            description: "Введите комбинацию клавиш (например: alt+t, alt+y, ctrl+t, alt+c):",
+            value: settings.keyClipboard || "alt+t",
+          })
+          if (val && val.trim()) {
+            const cleanKey = val.trim().toLowerCase()
+            await updateSettings((draft) => {
+              draft.keyClipboard = cleanKey
+            })
+            context.ui.toast.show({
+              message: `Хоткей перевода буфера: ${formatKey(cleanKey)}`,
+              variant: "success",
+            })
+          }
+        } else if (keyAction === "last") {
+          const val = await context.ui.dialog.prompt({
+            title: "Хоткей: Перевод ответа ассистента",
+            description: "Введите комбинацию клавиш (например: alt+shift+t, alt+shift+y, ctrl+shift+t):",
+            value: settings.keyLastTurn || "alt+shift+t",
+          })
+          if (val && val.trim()) {
+            const cleanKey = val.trim().toLowerCase()
+            await updateSettings((draft) => {
+              draft.keyLastTurn = cleanKey
+            })
+            context.ui.toast.show({
+              message: `Хоткей последнего ответа: ${formatKey(cleanKey)}`,
+              variant: "success",
+            })
+          }
+        } else if (keyAction === "panel") {
+          const val = await context.ui.dialog.prompt({
+            title: "Хоткей: Боковая панель перевода",
+            description: "Введите комбинацию клавиш (например: alt+p, alt+o, ctrl+p):",
+            value: settings.keyPanel || "alt+p",
+          })
+          if (val && val.trim()) {
+            const cleanKey = val.trim().toLowerCase()
+            await updateSettings((draft) => {
+              draft.keyPanel = cleanKey
+            })
+            context.ui.toast.show({
+              message: `Хоткей боковой панели: ${formatKey(cleanKey)}`,
+              variant: "success",
+            })
+          }
+        } else if (keyAction === "reset_keys") {
+          await updateSettings((draft) => {
+            draft.keyClipboard = "alt+t"
+            draft.keyLastTurn = "alt+shift+t"
+            draft.keyPanel = "alt+p"
+          })
+          context.ui.toast.show({
+            message: "Хоткеи сброшены к Alt+T, Alt+Shift+T, Alt+P",
+            variant: "info",
+          })
+        }
       } else if (picked === "reset") {
         await updateSettings((draft) => {
           Object.assign(draft, DEFAULT_TUI_SETTINGS)
@@ -836,7 +940,7 @@ export default Plugin.define({
               id: "translate.clipboard",
               title: "Translate clipboard selection",
               group: "Translation",
-              bind: "alt+t",
+              bind: settings.keyClipboard || "alt+t",
               palette: true,
               slash: { name: "translate", aliases: ["tr"], arguments: true },
               suggested: true,
@@ -848,7 +952,7 @@ export default Plugin.define({
               id: "translate.last",
               title: "Translate last assistant message",
               group: "Translation",
-              bind: "alt+shift+t",
+              bind: settings.keyLastTurn || "alt+shift+t",
               palette: true,
               slash: { name: "translate-last", aliases: ["trl"] },
               run: async () => {
@@ -859,7 +963,7 @@ export default Plugin.define({
               id: "translate.panel",
               title: "Toggle translation side panel",
               group: "Translation",
-              bind: "alt+p",
+              bind: settings.keyPanel || "alt+p",
               palette: true,
               slash: { name: "translate-panel", aliases: ["trp"] },
               run: () => {

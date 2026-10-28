@@ -492,6 +492,56 @@ export function SettingsView(props: Props) {
         </div>
       </div>
 
+      {/* Terminal (TUI) Keybindings */}
+      <div style={sectionHeader}>Terminal (TUI) Keybindings</div>
+      <div style={cardStyle}>
+        <div style={{ "font-size": "12px", color: "var(--text-subdued, #94a3b8)", "line-height": "1.4" }}>
+          Customize hotkeys for OpenCode running in the terminal. If your terminal emulator (e.g. <strong>Ghostty</strong>, iTerm2, Alacritty) intercepts <code>Alt+T</code> or other system keys, you can specify any alternative key combinations here (e.g. <code>alt+y</code>, <code>ctrl+t</code>, <code>alt+c</code>).
+        </div>
+
+        {/* Key: Clipboard */}
+        <div style={fieldRow}>
+          <div style={labelStyle}>
+            <span>Translate Clipboard Hotkey</span>
+            <span style={subLabelStyle}>Default: <code>alt+t</code> (or custom, e.g. <code>alt+y</code>, <code>ctrl+t</code>)</span>
+          </div>
+          <input
+            type="text"
+            style={{ ...inputStyle, width: "140px", "font-family": "ui-monospace, monospace" }}
+            value={c().tuiKeyClipboard || "alt+t"}
+            onInput={(e) => props.update({ tuiKeyClipboard: e.currentTarget.value.trim().toLowerCase() })}
+          />
+        </div>
+
+        {/* Key: Last Turn */}
+        <div style={fieldRow}>
+          <div style={labelStyle}>
+            <span>Translate Last Assistant Turn Hotkey</span>
+            <span style={subLabelStyle}>Default: <code>alt+shift+t</code> (e.g. <code>alt+shift+y</code>, <code>ctrl+shift+t</code>)</span>
+          </div>
+          <input
+            type="text"
+            style={{ ...inputStyle, width: "140px", "font-family": "ui-monospace, monospace" }}
+            value={c().tuiKeyLastTurn || "alt+shift+t"}
+            onInput={(e) => props.update({ tuiKeyLastTurn: e.currentTarget.value.trim().toLowerCase() })}
+          />
+        </div>
+
+        {/* Key: Side Panel */}
+        <div style={fieldRow}>
+          <div style={labelStyle}>
+            <span>Toggle Side Panel Hotkey</span>
+            <span style={subLabelStyle}>Default: <code>alt+p</code> (e.g. <code>alt+o</code>, <code>ctrl+p</code>)</span>
+          </div>
+          <input
+            type="text"
+            style={{ ...inputStyle, width: "140px", "font-family": "ui-monospace, monospace" }}
+            value={c().tuiKeyPanel || "alt+p"}
+            onInput={(e) => props.update({ tuiKeyPanel: e.currentTarget.value.trim().toLowerCase() })}
+          />
+        </div>
+      </div>
+
       {/* Reset */}
       <div style={{ "margin-top": "24px", display: "flex", "justify-content": "flex-end" }}>
         <button

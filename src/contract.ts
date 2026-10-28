@@ -31,6 +31,32 @@ export const Translate = Ipc.define({
         ),
       }),
     },
+    getTuiSettings: {
+      input: Schema.Struct({}),
+      output: Schema.Struct({
+        keyClipboard: Schema.optional(Schema.String),
+        keyLastTurn: Schema.optional(Schema.String),
+        keyPanel: Schema.optional(Schema.String),
+        targets: Schema.optional(Schema.String),
+        engineMode: Schema.optional(
+          Schema.Union([Schema.Literal("auto"), Schema.Literal("fast"), Schema.Literal("llm")]),
+        ),
+      }),
+    },
+    saveTuiSettings: {
+      input: Schema.Struct({
+        keyClipboard: Schema.optional(Schema.String),
+        keyLastTurn: Schema.optional(Schema.String),
+        keyPanel: Schema.optional(Schema.String),
+        targets: Schema.optional(Schema.String),
+        engineMode: Schema.optional(
+          Schema.Union([Schema.Literal("auto"), Schema.Literal("fast"), Schema.Literal("llm")]),
+        ),
+      }),
+      output: Schema.Struct({
+        success: Schema.Boolean,
+      }),
+    },
   },
 })
 

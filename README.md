@@ -107,6 +107,10 @@ All hotkeys are conflict-free and don't clash with OpenCode's native keys:
 
 ### 🪟 Scrollable Multiline Translation Modal
 
+<p align="center">
+  <img src="assets/tui-modal.png" alt="OpenCode TUI Multiline Translation Modal" width="620" />
+</p>
+
 When the side panel is closed, pressing `Alt+T` opens a centered, high-contrast modal dialog:
 
 - **Full Multiline Text & Word Wrapping**: Unlike standard one-line menus, translations render with complete word wrapping (`wrapMode="word"`). Long paragraphs, code snippets, and lists are displayed without truncation.
@@ -120,6 +124,10 @@ When the side panel is closed, pressing `Alt+T` opens a centered, high-contrast 
 ---
 
 ### 📑 Persistent Side Panel (`session.panel`)
+
+<p align="center">
+  <img src="assets/tui-panel.png" alt="OpenCode TUI Translation Sidebar Panel" width="340" />
+</p>
 
 Press `Alt+P` or run `/translate-panel` to open a persistent translation sidebar alongside your active chat session.
 
@@ -135,6 +143,20 @@ When the panel has focus (indicated by a green `[фокус]` badge in the top r
 - **`f`**: Toggle full-screen mode (expands panel across the entire terminal for reading lengthy documentation).
 - **`q`** or **`Esc`**: Close the side panel.
 - **`↑`/`↓`, `j`/`k`, `PageUp`/`PageDown`**: Scroll through translation text.
+
+---
+
+### ⌨️ Customizable Keybindings (Ghostty & Custom Terminals)
+
+If your terminal emulator (such as **Ghostty**, iTerm2, Alacritty, or Kitty) intercepts `Alt+T` for native window/tab shortcuts, you can easily customize all translation shortcuts:
+
+1. **Via Desktop GUI Settings** (`Settings > Translation > Terminal (TUI) Keybindings`):
+   - Edit **Translate Clipboard Hotkey** (e.g. `alt+y`, `ctrl+t`, `alt+c`).
+   - Edit **Translate Last Turn Hotkey** (e.g. `alt+shift+y`, `ctrl+shift+t`).
+   - Edit **Toggle Side Panel Hotkey** (e.g. `alt+o`, `ctrl+p`).
+   - All changes instantly sync to your terminal configuration!
+2. **Directly in the Terminal** (`/translate-config`):
+   - Select **Горячие клавиши** to change key combinations interactively on the fly.
 
 ---
 

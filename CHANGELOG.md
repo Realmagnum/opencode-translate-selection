@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.1] - 2026-10-28
+
+### Added
+- **Customizable TUI Keybindings**:
+  - Configure keybindings directly from the Desktop GUI (`Settings > Translation > Terminal (TUI) Keybindings`) or interactively in the terminal via `/translate-config > Горячие клавиши`.
+  - Fixes shortcut collisions with terminal emulators (e.g. Ghostty's native `Alt+T`, iTerm2, Alacritty) by allowing users to set any key combinations (e.g. `alt+y`, `ctrl+t`, `alt+c`).
+  - Seamless two-way persistence: keybinding changes made in GUI settings are saved to TUI state (`plugin.translate-selection.tui-settings.json`) and vice-versa.
+- **TUI Visual Documentation**:
+  - Added screenshots of the multiline scrollable modal dialog (`assets/tui-modal.png`) and the responsive side panel (`assets/tui-panel.png`) to README.
+- **Enhanced Symmetrical Modal & Responsive Panel Layout**:
+  - Removed asymmetric borders in `TranslationModal` to match native OpenCode modal dialogs.
+  - Redesigned side panel header and footer for narrow terminal widths (30–40 columns): non-breaking chip-based hotkey legend and responsive header hierarchy.
+
+---
+
 ## [0.3.0] - 2026-10-28
 
 ### Added
