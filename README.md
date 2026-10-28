@@ -84,25 +84,33 @@ In your `~/.config/opencode/opencode.json`:
 
 ## 🛠️ How It Works
 
-```
-┌────────────────────────────────────────────────────────┐
-│  OpenCode Desktop (Electron Window / SolidJS Renderer) │
-│                                                        │
-│  User selects text in timeline                         │
-│   └─► `window.getSelection()`                          │
-│   └─► `selection.getRangeAt(0).getBoundingClientRect()`│
-│   └─► Solid `<Portal>` renders above Quote toolbar     │
-└──────────────────────────┬─────────────────────────────┘
-                           │ Ipc (Effect Schema bridge)
-                           ▼
-┌────────────────────────────────────────────────────────┐
-│  Electron Main Process (Node.js runtime)               │
-│                                                        │
-│  1. Check in-memory LRU Cache                          │
-│  2. Google Translate (gtx / dict-chrome-ex)            │
-│  3. Fallback: MyMemory Translate API                   │
-│  4. Deduplicate & return detected source + results     │
-└────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph UI ["Desktop Window (SolidJS Renderer)"]
+        direction TB
+        SEL["User selects text in timeline"] --> GET["window.getSelection() & getBoundingClientRect()"]
+        GET --> POPUP["Solid &lt;Portal&gt; renders popup above Quote toolbar"]
+        POPUP -->|Click line| CLIP["Copy translation to clipboard"]
+    end
+
+    subgraph IPC ["OpenCode IPC Bridge"]
+        GET -->|Translate request| BRIDGE["Ipc (Effect Schema)"]
+    end
+
+    subgraph MAIN ["Electron Main Process (Node.js)"]
+        direction TB
+        BRIDGE --> CACHE{"In-Memory LRU Cache"}
+        CACHE -->|Hit| RES["Cached Result"]
+        CACHE -->|Miss| T1["Tier 1: Google Translate (gtx)"]
+        T1 -->|Success| RET["Save to cache & filter source lang"]
+        T1 -->|Rate limit / 429 / Error| T2["Tier 2: Google Translate (dict-chrome-ex)"]
+        T2 -->|Success| RET
+        T2 -->|Network / Blocked| T3["Tier 3: MyMemory API Fallback"]
+        T3 -->|Success| RET
+    end
+
+    RET --> POPUP
+    RES --> POPUP
 ```
 
 1. **Window setup (`src/gui.tsx`)**: Mounts a non-intrusive reactive surface into the `window.bottom` slot.
