@@ -3,12 +3,13 @@
 # opencode-translate-selection
 
 [![OpenCode Desktop](https://img.shields.io/badge/OpenCode_Desktop-v2.2.0+-blue.svg?logo=electron&logoColor=white)](https://opencode.ai/)
+[![OpenCode TUI](https://img.shields.io/badge/OpenCode_TUI-v2.2.0+-green.svg?logo=gnubash&logoColor=white)](https://opencode.ai/)
 [![CI](https://github.com/Realmagnum/opencode-translate-selection/actions/workflows/ci.yml/badge.svg)](https://github.com/Realmagnum/opencode-translate-selection/actions)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![SolidJS](https://img.shields.io/badge/SolidJS-1.9-2c4f7c.svg?logo=solid&logoColor=white)](https://www.solidjs.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Instant inline translation tooltip on text selection for OpenCode Desktop with Smart Hybrid LLM/MT routing — supports all languages.**
+**Instant inline translation tooltip on text selection for OpenCode Desktop & Full Terminal TUI Support with Smart Hybrid LLM/MT routing — supports all languages.**
 
 <br>
 
@@ -19,9 +20,9 @@
 ---
 
 > [!IMPORTANT]
-> **Requires OpenCode Desktop v2.2.0 or newer**. This plugin relies on the GUI plugin SDK (`@opencode/plugin/gui`) and the desktop timeline selection system introduced in OpenCode 2.2.0.
-
-Select text anywhere in the session timeline or side panels, and a floating translation popup appears automatically — positioned directly above OpenCode's native **Quote** toolbar. No hotkeys required. Click any translation line to copy it directly to your clipboard.
+> **Requires OpenCode v2.2.0 or newer**.
+> - **In OpenCode Desktop**: Provides a floating translation tooltip on mouse selection directly above the native **Quote** toolbar.
+> - **In OpenCode TUI / Terminal**: Provides leader keybinds (`<leader>t`, `<leader>tl`, `<leader>tp`), slash commands (`/translate`), an interactive translation side panel, and instant clipboard support.
 
 ---
 
@@ -82,6 +83,33 @@ npm run build
 ```
 
 3. Restart OpenCode Desktop once. Subsequent edits via `npm run watch` reload the GUI automatically in real time without needing an app restart!
+
+---
+
+## 💻 Terminal (TUI) Usage
+
+When running OpenCode in your terminal (`opencode`), the plugin automatically activates its TUI component with zero configuration required.
+
+### ⌨️ Keybindings & Commands
+
+| Keybind | Command / Slash | Description |
+|---|---|---|
+| `alt+t` | `/translate [text]` (or `/tr`) | **Translate clipboard text** (or custom prompt if empty / argument passed). Shows an interactive popup dialog with quick copy. |
+| `alt+shift+t` | `/translate-last` (or `/trl`) | **Translate last assistant message** from current session without cluttering chat history. |
+| `alt+p` | `/translate-panel` (or `/trp`) | **Toggle side panel** (`session.panel`) for persistent side-by-side translation reading. |
+| — | `/translate-config` | Open interactive TUI settings (target languages, engine mode: Auto / Fast MT / LLM). |
+
+*(All commands are also accessible from the command palette via `Ctrl+P`).*
+
+### 📑 Interactive Side Panel Features
+
+When the translation panel is open (`alt+p` or `/translate-panel`), it receives keyboard shortcuts directly when focused:
+- `t`: Translate current clipboard text
+- `l`: Translate last assistant turn in current session
+- `y`: Copy current formatted Markdown translation to clipboard
+- `m`: Cycle engine mode (`AUTO` → `FAST` → `LLM` → `AUTO`)
+- `f`: Toggle panel full-screen view
+- `q` or `Esc`: Close the panel
 
 ---
 

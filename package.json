@@ -1,7 +1,7 @@
 {
   "name": "opencode-translate-selection",
-  "version": "0.2.0",
-  "description": "Instant inline translation tooltip on text selection for OpenCode Desktop (v2.2.0+) with Smart Hybrid LLM/MT routing across all languages",
+  "version": "0.3.0",
+  "description": "Instant inline translation tooltip for OpenCode Desktop (v2.2.0+) and Terminal TUI (hotkeys, last turn, side panel) with Smart Hybrid LLM/MT routing across all languages",
   "author": "Realmagnum",
   "license": "MIT",
   "repository": {
@@ -16,10 +16,13 @@
     "opencode",
     "opencode-plugin",
     "opencode-desktop",
+    "opencode-tui",
     "opencode-gui",
     "translation",
     "translator",
     "tooltip",
+    "tui",
+    "terminal",
     "desktop",
     "solidjs",
     "electron",
@@ -30,16 +33,22 @@
   "files": [
     "dist",
     "src",
+    "server.ts",
+    "tui.ts",
+    "tui.tsx",
     "assets",
     "README.md",
     "LICENSE"
   ],
   "exports": {
     ".": "./src/index.ts",
-    "./gui-experimental": "./dist/gui-experimental.cjs"
+    "./gui-experimental": "./dist/gui-experimental.cjs",
+    "./tui": "./dist/tui.js"
   },
   "scripts": {
-    "build": "vite build",
+    "build": "vite build && node build-tui.mjs",
+    "build:gui": "vite build",
+    "build:tui": "node build-tui.mjs",
     "watch": "vite build --watch",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test \"test/**/*.test.ts\"",
@@ -48,11 +57,23 @@
   "engines": {
     "node": ">=22"
   },
+  "peerDependencies": {
+    "@opentui/core": ">=0.6.6",
+    "@opentui/solid": ">=0.6.6",
+    "solid-js": ">=1.9.0"
+  },
   "dependencies": {
     "@opencode/plugin": "^2.2.0"
   },
   "devDependencies": {
-    "solid-js": "^1.9.17",
+    "@babel/core": "^8.0.9",
+    "@babel/plugin-syntax-jsx": "^8.0.1",
+    "@babel/preset-typescript": "^8.0.7",
+    "@opentui/core": "^0.7.0",
+    "@opentui/solid": "^0.7.0",
+    "babel-preset-solid": "^1.9.16",
+    "esbuild": "^0.28.2",
+    "solid-js": "1.9.12",
     "typescript": "^5.9.3",
     "vite": "^7.3.7",
     "vite-plugin-solid": "^2.11.14"

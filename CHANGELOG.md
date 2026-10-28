@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.0] - 2026-10-28
+
+### Added
+- **Full OpenCode Terminal (TUI) Support (`./tui`)**:
+  - Implemented TUI plugin adapter utilizing OpenTUI (`@opentui/solid` and `@opentui/core`).
+  - **Clipboard Translation**: Press `<leader>t` (or `/translate [text]`) to immediately translate clipboard contents with fallback to interactive prompt.
+  - **Last Assistant Turn Translation**: Press `<leader>tl` (or `/translate-last`) to fetch and translate the last assistant message in the active session without touching chat context.
+  - **Interactive Side Panel (`session.panel`)**: Press `<leader>tp` (or `/translate-panel`) to toggle a dedicated side panel with real-time translation viewer, engine mode badge, and quick keyboard shortcuts (`t`, `l`, `y`, `m`, `f`, `q`).
+  - **TUI Settings Command**: `/translate-config` allows interactive switching of target languages and engine mode directly in the terminal, persisted with `context.storage.store`.
+  - **Cross-platform Clipboard Integration**: Asynchronous, non-blocking clipboard read/write supporting macOS (`pbpaste`/`pbcopy`), Linux (`wl-paste`/`wl-copy`, `xclip`, `xsel`), and Windows (`powershell`).
+  - **Interactive Result Dialogs**: Rich selection dialog offering one-click copy (`y` / `Enter`) and panel redirection.
+- **Unit Tests**:
+  - Added unit test cases for assistant message extraction and markdown output formatting (total 20 unit tests).
+
+---
+
 ## [0.2.0] - 2026-10-28
 
 ### Added
