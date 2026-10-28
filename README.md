@@ -115,7 +115,19 @@ When the translation panel is open (`alt+p` or `/translate-panel`), it receives 
 
 ## ⚙️ Settings (GUI)
 
-The plugin adds a dedicated **Translation** page directly inside OpenCode Desktop's **Settings** (`/settings?tab=translate`, icon: `globe`).
+The plugin integrates seamlessly with OpenCode Desktop's Settings:
+
+### 1. Plugin Management (`Settings > Extensions > Plugins`)
+
+The plugin automatically registers with OpenCode's native extensions manager. You can reload its GUI or toggle it on/off at any time without restarting OpenCode:
+
+<p align="center">
+  <img src="assets/extensions.png" alt="OpenCode Extensions Plugins Manager" width="620" />
+</p>
+
+### 2. Dedicated Configuration (`Settings > Translation`)
+
+A dedicated **Translation** page is added directly to OpenCode Desktop's Settings (`/settings?tab=translate`, icon: `globe`).
 
 <p align="center">
   <img src="assets/settings.png" alt="Translation Tooltip Settings with Live Preview" width="620" />
