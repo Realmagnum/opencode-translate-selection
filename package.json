@@ -1,0 +1,25 @@
+{
+  "name": "opencode-translate-selection",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Translate the selected text in OpenCode Desktop and show it in a floating popup above the quote toolbar.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./gui-experimental": "./dist/gui-experimental.cjs"
+  },
+  "scripts": {
+    "build": "vite build",
+    "watch": "vite build --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@opencode/plugin": "^2.2.0"
+  },
+  "devDependencies": {
+    "solid-js": "1.9",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.7",
+    "vite-plugin-solid": "^2.11.14"
+  }
+}
