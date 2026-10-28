@@ -38,6 +38,20 @@ export interface TranslateInputParams {
   dropSourceLang?: boolean
 }
 
+/** Fast script-based language heuristic for the LLM path */
+export function detectScriptLanguage(text: string): string {
+  // CJK Unified Ideographs (Chinese)
+  if (/[\u4e00-\u9fff\u3400-\u4dbf]/.test(text)) return "zh"
+  // Japanese Hiragana & Katakana
+  if (/[\u3040-\u30ff]/.test(text)) return "ja"
+  // Korean Hangul
+  if (/[\uac00-\ud7af]/.test(text)) return "ko"
+  // Cyrillic (Russian)
+  if (/[а-яё]/i.test(text)) return "ru"
+  // Default to English / Latin
+  return "en"
+}
+
 interface Entry {
   text: string
   detected: string
@@ -142,7 +156,7 @@ async function fetchMyMemory(text: string, to: string, signal: AbortSignal): Pro
 
   const detected = typeof body?.matches?.[0]?.["source-language"] === "string"
     ? body.matches[0]["source-language"]
-    : (/[а-яё]/i.test(text) ? "ru" : "en")
+    : detectScriptLanguage(text)
 
   return { text: unescapeHtml(translated.trim()), detected, engineUsed: "mymemory" }
 }
@@ -215,7 +229,7 @@ export async function translate(
   if (shouldTryLlm) {
     try {
       const dropSource = input.dropSourceLang !== false
-      const detectedSource = /[а-яё]/i.test(text) ? "ru" : "en"
+      const detectedSource = detectScriptLanguage(text)
       const activeTargets = dropSource
         ? targets.filter((t) => t.toLowerCase().split("-")[0] !== detectedSource)
         : targets

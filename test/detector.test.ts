@@ -1,6 +1,15 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import { isComplexFormattedText } from "../src/detector.ts"
+import { detectScriptLanguage } from "../src/translate.ts"
+
+test("detector: identifies script language for Chinese, Russian, Japanese and English", () => {
+  assert.equal(detectScriptLanguage("这是一个测试"), "zh")
+  assert.equal(detectScriptLanguage("主要功能：• 搜索"), "zh")
+  assert.equal(detectScriptLanguage("Привет мир"), "ru")
+  assert.equal(detectScriptLanguage("こんにちは"), "ja")
+  assert.equal(detectScriptLanguage("Hello world"), "en")
+})
 
 test("detector: identifies short plain phrases as simple (not complex)", () => {
   assert.equal(isComplexFormattedText("Hello world"), false)
