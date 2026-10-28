@@ -1,7 +1,7 @@
 {
   "name": "opencode-translate-selection",
-  "version": "0.1.0",
-  "description": "Instant inline translation tooltip on text selection for OpenCode Desktop (v2.2.0+)",
+  "version": "0.2.0",
+  "description": "Instant inline translation tooltip on text selection for OpenCode Desktop (v2.2.0+) with Smart Hybrid LLM/MT routing",
   "author": "Realmagnum",
   "license": "MIT",
   "repository": {
@@ -15,12 +15,16 @@
   "keywords": [
     "opencode",
     "opencode-plugin",
+    "opencode-desktop",
+    "opencode-gui",
     "translation",
     "translator",
     "tooltip",
     "desktop",
     "solidjs",
-    "electron"
+    "electron",
+    "llm",
+    "ai"
   ],
   "type": "module",
   "files": [
@@ -38,7 +42,11 @@
     "build": "vite build",
     "watch": "vite build --watch",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test \"test/**/*.test.ts\""
+    "test": "node --experimental-strip-types --test \"test/**/*.test.ts\"",
+    "ci": "npm run typecheck && npm test && npm run build"
+  },
+  "engines": {
+    "node": ">=22"
   },
   "dependencies": {
     "@opencode/plugin": "^2.2.0"
