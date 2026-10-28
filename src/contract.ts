@@ -17,6 +17,7 @@ export const Translate = Ipc.define({
           Schema.Union([Schema.Literal("auto"), Schema.Literal("fast"), Schema.Literal("llm")]),
         ),
         llmTimeoutMs: Schema.optional(Schema.Number),
+        dropSourceLang: Schema.optional(Schema.Boolean),
       }),
       output: Schema.Struct({
         detected: Schema.String,

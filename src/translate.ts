@@ -35,6 +35,7 @@ export interface TranslateInputParams {
   sessionID?: string
   engineMode?: "auto" | "fast" | "llm"
   llmTimeoutMs?: number
+  dropSourceLang?: boolean
 }
 
 interface Entry {
@@ -213,8 +214,15 @@ export async function translate(
   // ──────────────────────────── LLM Translation Path ────────────────────────────
   if (shouldTryLlm) {
     try {
-      const llmResults = await Promise.all(
-        targets.map(async (target) => {
+      const dropSource = input.dropSourceLang !== false
+      const detectedSource = /[а-яё]/i.test(text) ? "ru" : "en"
+      const activeTargets = dropSource
+        ? targets.filter((t) => t.toLowerCase().split("-")[0] !== detectedSource)
+        : targets
+      const targetsToTranslate = activeTargets.length > 0 ? activeTargets : targets
+
+      const llmSettled = await Promise.allSettled(
+        targetsToTranslate.map(async (target) => {
           const cacheKey = `llm\0${target}\0${text}`
           const cached = cache.get(cacheKey)
           if (cached) return cached
@@ -230,32 +238,36 @@ export async function translate(
             signal,
           )
 
-          const detected = /[а-яё]/i.test(text) ? "ru" : "en"
-          const entry: Entry = { text: res.text, detected, engineUsed: "llm" }
+          const entry: Entry = { text: res.text, detected: detectedSource, engineUsed: "llm" }
           remember(cacheKey, entry)
           return entry
         }),
       )
 
-      const detected = llmResults[0]?.detected || (/[а-яё]/i.test(text) ? "ru" : "en")
-      const results: TransResult[] = llmResults.map((entry, index) => ({
-        lang: targets[index] ?? "",
-        text: entry.text,
-        engineUsed: "llm",
-      }))
+      const fulfilled = llmSettled.filter(
+        (r): r is PromiseFulfilledResult<Entry> => r.status === "fulfilled",
+      )
 
-      const source = detected.toLowerCase().split("-")[0]
-      const useful = source
-        ? results.filter((r) => r.lang.toLowerCase().split("-")[0] !== source || r.error)
-        : results
+      if (fulfilled.length > 0) {
+        const results: TransResult[] = llmSettled.map((r, index) => {
+          const lang = targetsToTranslate[index] ?? ""
+          if (r.status === "fulfilled") {
+            return { lang, text: r.value.text, engineUsed: "llm" }
+          }
+          return { lang, text: "", error: describe(r.reason) }
+        })
 
-      return { detected, results: useful.length > 0 ? useful : results }
+        return { detected: detectedSource, results }
+      }
+
+      // If all LLM targets failed, throw to fall back to MT pipeline
+      const firstError = llmSettled.find((r) => r.status === "rejected")
+      throw (firstError as PromiseRejectedResult)?.reason ?? new Error("LLM failed")
     } catch (llmError) {
       log?.("warn", "LLM translation failed or timed out, falling back to MT pipeline", {
         error: describe(llmError),
       })
       if (mode === "llm") {
-        // If explicitly in LLM-only mode, report the error rather than silent MT
         return {
           detected: "",
           results: targets.map((lang) => ({ lang, text: "", error: describe(llmError) })),

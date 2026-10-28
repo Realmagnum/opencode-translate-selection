@@ -145,6 +145,7 @@ export function SelectionPopup(props: {
     sessionID?: string
     engineMode?: "auto" | "fast" | "llm"
     llmTimeoutMs?: number
+    dropSourceLang?: boolean
   }): Promise<TranslateOutput>
   copy(text: string): void
   currentSessionId?(): string | undefined
@@ -196,6 +197,7 @@ export function SelectionPopup(props: {
         sessionID: props.currentSessionId?.(),
         engineMode: currentCfg.engineMode,
         llmTimeoutMs: currentCfg.llmTimeoutMs,
+        dropSourceLang: currentCfg.dropSourceLang,
       })
       if (id !== sequence) return
 
