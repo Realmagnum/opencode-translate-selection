@@ -8,7 +8,7 @@
 [![SolidJS](https://img.shields.io/badge/SolidJS-1.9-2c4f7c.svg?logo=solid&logoColor=white)](https://www.solidjs.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Instant inline translation tooltip on text selection for OpenCode Desktop with Smart Hybrid LLM/MT routing.**
+**Instant inline translation tooltip on text selection for OpenCode Desktop with Smart Hybrid LLM/MT routing — supports all languages.**
 
 <br>
 
@@ -34,7 +34,7 @@ Select text anywhere in the session timeline or side panels, and a floating tran
   - **Complex structures & code**: Multi-line selections (bullet lists `•`, numbered steps `1.`, function calls like `tools.opencode.models()`, parameter objects) automatically route to the **active session's LLM** outside conversation history.
   - **Zero context pollution**: LLM translations run via `client.session.generate()`, so they never add messages to your chat or consume conversation context.
 - **Fail-safe Fallback with Token Shielding**: If the LLM times out (> 3.5s) or is busy, requests seamlessly fall back to the multi-tier MT pipeline with mathematical token shielding (`⟦0⟧`) protecting code and identifiers.
-- **Bilingual & smart filtering**: Automatically detects the source language. Translates into your configured target languages (`RU` and `EN` by default) and drops the language matching the source (e.g. selecting English text shows only the Russian translation).
+- **Universal Language Support & Smart Filtering**: Works with **any language** supported by Google Translate (130+ languages) and your session's LLM — including Chinese, Japanese, Korean, Russian, English, German, French, Spanish, and more. Automatically detects the source language, translates into your configured target languages (`ru, en` by default or any custom list in Settings), and intelligently hides the target that matches the source (e.g. selecting English text shows only Russian; selecting Chinese or Japanese displays Russian and English; or configure a single target like `ru` to translate everything exclusively into Russian).
 - **Structured Popup Rendering**:
   - Clean bullet tags (`•`), numbered steps (`1.`), and indentations.
   - Inline code highlighted in monospace font on subtle background chips: `<code style="...">`.
@@ -107,7 +107,7 @@ You can customize everything in real-time with an **interactive Live Preview**:
   - Maximum tooltip width (300px – 800px).
   - Maximum tooltip height (200px – 700px).
   - Text font size (10px – 18px).
-- **Target Languages**: Edit comma-separated ISO language codes (e.g. `ru, en, de, fr, es, zh`).
+- **Target Languages**: Edit comma-separated ISO language codes (e.g. `ru, en, de, fr, es, zh, ja, ko`). Supports **any language** understood by Google Translate (130+ languages) or your active LLM. Set a single code like `ru` to translate all foreign text (English, Chinese, etc.) strictly into Russian.
 - **Behavior**: Adjust selection debounce delay (60ms – 400ms) and character limits (200 – 2500).
 - **Reset**: Restore defaults with one click.
 

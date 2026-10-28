@@ -1,7 +1,7 @@
 {
   "name": "opencode-translate-selection",
   "version": "0.2.0",
-  "description": "Instant inline translation tooltip on text selection for OpenCode Desktop (v2.2.0+) with Smart Hybrid LLM/MT routing",
+  "description": "Instant inline translation tooltip on text selection for OpenCode Desktop (v2.2.0+) with Smart Hybrid LLM/MT routing across all languages",
   "author": "Realmagnum",
   "license": "MIT",
   "repository": {

@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Short and plain text (< 40–80 chars) is routed to ultra-fast Google MT (~100ms) with zero token usage.
   - Multi-line structured text (bullet points, numbered lists, function calls, code blocks) automatically routes to the **active session's LLM** outside conversation history.
   - Zero session context pollution: LLM requests run via `client.session.generate()` without storing messages in conversation history or consuming chat context.
+- **Multi-Script & All-Languages Support**:
+  - Unicode script detection for Chinese (CJK), Japanese (Hiragana/Katakana), Korean (Hangul), Cyrillic (Russian), and Latin (English, German, French, etc.).
+  - Supports any language understood by Google Translate (130+ languages) and the session's active LLM.
 - **Fail-safe Fallback Engine with Token Shielding**:
   - LLM timeout protection (configurable, 3.5s default). If the model is busy, times out, or errors, requests automatically fall back to the multi-tier MT pipeline.
   - Mathematical Token Shielding (`⟦0⟧`, `⟦1⟧`) isolates code blocks and identifier calls (`tools.opencode.models(...)`) so MT engines do not mangle casing or syntax.
