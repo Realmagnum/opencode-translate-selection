@@ -1,6 +1,7 @@
 import { For, Show, createSignal, onCleanup, onMount } from "solid-js"
 import { Portal } from "solid-js/web"
 import type { TranslateOutput } from "./contract"
+import type { PluginSettings } from "./settings"
 
 export interface Labels {
   loading: string
@@ -13,9 +14,7 @@ export interface Labels {
 interface View {
   text: string
   left: number
-  /** Distance from the viewport bottom, when the popup sits above the selection. */
   bottom?: number
-  /** Distance from the viewport top, when there is no room above. */
   top?: number
   results: TranslateOutput["results"]
   detected: string
@@ -24,66 +23,80 @@ interface View {
   truncated: boolean
 }
 
-/**
- * The built-in quote toolbar sits above a selection of up to three lines, so this
- * popup clears it: 34px of toolbar plus an 8px gap, rounded up.
- */
-const QUOTE_CLEARANCE = 52
-const MAX_WIDTH = 560
-const MAX_CHARS = 600
-
 const POPUP_CLASS = "translate-selection-popup"
 
-const shell = (view: View): Record<string, string> => ({
-  position: "fixed",
-  left: `${view.left}px`,
-  ...(view.bottom !== undefined ? { bottom: `${view.bottom}px` } : { top: `${view.top ?? 0}px` }),
-  "z-index": "2147483000",
-  "max-width": `${MAX_WIDTH}px`,
-  "min-width": "220px",
-  padding: "7px 10px 8px",
-  "border-radius": "10px",
-  border: "1px solid rgba(255, 215, 94, 0.45)",
-  background: "rgba(43, 34, 10, 0.97)",
-  "box-shadow": "0 14px 34px rgba(0, 0, 0, 0.45)",
-  color: "#ffd75e",
-  font: "12.5px/1.45 ui-sans-serif, -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
-  "pointer-events": "auto",
-  "user-select": "text",
-  cursor: "default",
-})
+function hexToRgba(hex: string, alpha: number): string {
+  let c = hex.replace("#", "").trim()
+  if (c.length === 3) c = c.split("").map((x) => x + x).join("")
+  const num = parseInt(c, 16)
+  if (isNaN(num)) return hex
+  const r = (num >> 16) & 255
+  const g = (num >> 8) & 255
+  const b = num & 255
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
 
-const row: Record<string, string> = {
+export function buildShellStyle(view: View | { left: number; top?: number; bottom?: number }, settings: PluginSettings): Record<string, string> {
+  const bg = hexToRgba(settings.bgColor, settings.bgOpacity / 100)
+  const border = hexToRgba(settings.accentColor, 0.45)
+  return {
+    position: "fixed",
+    left: `${view.left}px`,
+    ...(view.bottom !== undefined ? { bottom: `${view.bottom}px` } : { top: `${view.top ?? 0}px` }),
+    "z-index": "2147483000",
+    "max-width": `${settings.maxWidth}px`,
+    "min-width": "220px",
+    padding: "7px 10px 8px",
+    "border-radius": `${settings.borderRadius}px`,
+    border: `1px solid ${border}`,
+    background: bg,
+    "box-shadow": "0 14px 34px rgba(0, 0, 0, 0.45)",
+    color: settings.textColor,
+    font: `${settings.fontSize}px/1.45 ui-sans-serif, -apple-system, BlinkMacSystemFont, system-ui, sans-serif`,
+    "pointer-events": "auto",
+    "user-select": "text",
+    cursor: "default",
+  }
+}
+
+export const rowStyle: Record<string, string> = {
   display: "flex",
   gap: "8px",
   "align-items": "baseline",
   padding: "2px 2px 3px",
   "border-radius": "6px",
+  cursor: "pointer",
 }
 
-const langTag: Record<string, string> = {
-  flex: "none",
-  "font-size": "10px",
-  "font-weight": "600",
-  "letter-spacing": "0.09em",
-  "text-transform": "uppercase",
-  color: "#c9a83f",
-  "min-width": "20px",
+export function buildLangTagStyle(settings: PluginSettings): Record<string, string> {
+  return {
+    flex: "none",
+    "font-size": `${Math.max(9, settings.fontSize - 2.5)}px`,
+    "font-weight": "600",
+    "letter-spacing": "0.09em",
+    "text-transform": "uppercase",
+    color: settings.accentColor,
+    "min-width": "20px",
+  }
 }
 
-const textStyle: Record<string, string> = {
-  color: "#ffd75e",
-  "white-space": "pre-wrap",
-  "overflow-wrap": "anywhere",
+export function buildTextStyle(settings: PluginSettings): Record<string, string> {
+  return {
+    color: settings.textColor,
+    "white-space": "pre-wrap",
+    "overflow-wrap": "anywhere",
+  }
 }
 
-const meta: Record<string, string> = {
-  "margin-top": "4px",
-  "padding-top": "4px",
-  border: "none",
-  "border-top": "1px solid rgba(255, 215, 94, 0.16)",
-  "font-size": "10.5px",
-  color: "#a68b3a",
+export function buildMetaStyle(settings: PluginSettings): Record<string, string> {
+  return {
+    "margin-top": "4px",
+    "padding-top": "4px",
+    border: "none",
+    "border-top": `1px solid ${hexToRgba(settings.accentColor, 0.16)}`,
+    "font-size": `${Math.max(9.5, settings.fontSize - 2)}px`,
+    color: hexToRgba(settings.accentColor, 0.8),
+  }
 }
 
 function isEditable(node: Node | null): boolean {
@@ -96,11 +109,10 @@ function isEditable(node: Node | null): boolean {
 }
 
 export function SelectionPopup(props: {
-  targets: string[]
+  settings: () => PluginSettings
   labels: Labels
   translate(input: { text: string; targets: readonly string[] }): Promise<TranslateOutput>
   copy(text: string): void
-  /** Set with `options.debug` to surface why a selection was skipped. */
   debug?(message: string): void
 }) {
   const [view, setView] = createSignal<View | null>(null)
@@ -110,8 +122,9 @@ export function SelectionPopup(props: {
   let pinned = false
   let sequence = 0
   let controller: AbortController | undefined
-  let hideTimer: ReturnType<typeof setTimeout> | undefined
   let readTimer: ReturnType<typeof setTimeout> | undefined
+
+  const cfg = () => props.settings()
 
   const hide = () => {
     sequence++
@@ -122,19 +135,11 @@ export function SelectionPopup(props: {
     setView(null)
   }
 
-  const hideSoon = (delay: number) => {
-    clearTimeout(hideTimer)
-    hideTimer = setTimeout(() => {
-      if (pinned) return
-
-      const selection = window.getSelection()
-      if (selection && !selection.isCollapsed && selection.toString().trim()) return
-
-      hide()
-    }, delay)
-  }
-
-  const run = async (text: string, truncated: boolean, place: Omit<View, "results" | "detected" | "loading" | "error" | "text" | "truncated">) => {
+  const run = async (
+    text: string,
+    truncated: boolean,
+    place: Omit<View, "results" | "detected" | "loading" | "error" | "text" | "truncated">,
+  ) => {
     const id = ++sequence
     controller?.abort()
     const local = new AbortController()
@@ -143,8 +148,13 @@ export function SelectionPopup(props: {
     setCopied(false)
     setView({ ...place, text, truncated, results: [], detected: "", loading: true })
 
+    const targets = cfg()
+      .targets.split(/[,;\s]+/)
+      .map((t) => t.trim().toLowerCase())
+      .filter(Boolean)
+
     try {
-      const output = await props.translate({ text, targets: props.targets })
+      const output = await props.translate({ text, targets: targets.length > 0 ? targets : ["ru", "en"] })
       if (id !== sequence) return
 
       props.debug?.(`translate: ${output.detected || "?"} -> ${output.results.map((item) => item.lang).join(",")}`)
@@ -174,6 +184,7 @@ export function SelectionPopup(props: {
   }
 
   const read = () => {
+    const currentCfg = cfg()
     const selection = window.getSelection()
     if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
       props.debug?.("translate: no selection")
@@ -197,14 +208,18 @@ export function SelectionPopup(props: {
 
     props.debug?.(`translate: ${raw.length} chars`)
 
-    const truncated = raw.length > MAX_CHARS
-    const text = truncated ? raw.slice(0, MAX_CHARS) : raw
+    const maxChars = currentCfg.maxChars
+    const truncated = raw.length > maxChars
+    const text = truncated ? raw.slice(0, maxChars) : raw
 
-    const left = Math.min(Math.max(8, Math.round(rect.left)), Math.max(8, Math.round(window.innerWidth - MAX_WIDTH - 8)))
-    const roomAbove = rect.top > QUOTE_CLEARANCE + 190
+    const left = Math.min(
+      Math.max(8, Math.round(rect.left)),
+      Math.max(8, Math.round(window.innerWidth - currentCfg.maxWidth - 8)),
+    )
+    const roomAbove = rect.top > currentCfg.clearance + 190
 
     const place = roomAbove
-      ? { left, bottom: Math.round(window.innerHeight - rect.top + QUOTE_CLEARANCE) }
+      ? { left, bottom: Math.round(window.innerHeight - rect.top + currentCfg.clearance) }
       : { left, top: Math.round(rect.bottom + 12) }
 
     pinned = false
@@ -215,7 +230,7 @@ export function SelectionPopup(props: {
     if (root && event.target instanceof Node && root.contains(event.target)) return
 
     clearTimeout(readTimer)
-    readTimer = setTimeout(read, 140)
+    readTimer = setTimeout(read, cfg().debounceMs)
   }
 
   const onMouseDown = (event: MouseEvent) => {
@@ -250,78 +265,78 @@ export function SelectionPopup(props: {
     document.removeEventListener("keydown", onKeyDown, true)
     window.removeEventListener("scroll", onScrollOrResize, true)
     window.removeEventListener("resize", onScrollOrResize, true)
-    clearTimeout(hideTimer)
     clearTimeout(readTimer)
     controller?.abort()
   })
 
-  const current = () => view()
-
   return (
-    <Show when={current()}>
-      {(shown) => (
-        <Portal>
-          <div
-            ref={(element) => (root = element)}
-            class={POPUP_CLASS}
-            style={shell(shown())}
-            onMouseDown={(event) => {
-              pinned = true
-              event.stopPropagation()
-            }}
-            onMouseEnter={() => (pinned = true)}
-            onMouseLeave={() => (pinned = false)}
-          >
-            <Show
-              when={!shown().loading}
-              fallback={
-                <div style={{ ...row, color: "#c9a83f" }}>
-                  <span style={langTag}>…</span>
-                  <span style={textStyle}>{props.labels.loading}</span>
-                </div>
-              }
+    <Show when={view()}>
+      {(shown) => {
+        const c = cfg()
+        return (
+          <Portal>
+            <div
+              ref={(element) => (root = element)}
+              class={POPUP_CLASS}
+              style={buildShellStyle(shown(), c)}
+              onMouseDown={(event) => {
+                pinned = true
+                event.stopPropagation()
+              }}
+              onMouseEnter={() => (pinned = true)}
+              onMouseLeave={() => (pinned = false)}
             >
               <Show
-                when={!shown().error}
+                when={!shown().loading}
                 fallback={
-                  <div style={{ ...row, color: "#f0a35e" }}>
-                    <span style={langTag}>!</span>
-                    <span style={{ ...textStyle, color: "#f0a35e" }}>
-                      {props.labels.failed}: {shown().error}
-                    </span>
+                  <div style={{ ...rowStyle, color: c.accentColor }}>
+                    <span style={buildLangTagStyle(c)}>…</span>
+                    <span style={buildTextStyle(c)}>{props.labels.loading}</span>
                   </div>
                 }
               >
-                <For each={shown().results}>
-                  {(result) => (
-                    <div
-                      style={row}
-                      onMouseDown={() => pinned = true}
-                      onClick={() => {
-                        if (!result.text) return
-                        props.copy(result.text)
-                        setCopied(true)
-                      }}
-                    >
-                      <span style={langTag}>{result.lang}</span>
-                      <span style={result.error ? { ...textStyle, color: "#f0a35e" } : textStyle}>
-                        {result.error ? `${props.labels.failed}: ${result.error}` : result.text}
+                <Show
+                  when={!shown().error}
+                  fallback={
+                    <div style={{ ...rowStyle, color: "#f0a35e" }}>
+                      <span style={buildLangTagStyle(c)}>!</span>
+                      <span style={{ ...buildTextStyle(c), color: "#f0a35e" }}>
+                        {props.labels.failed}: {shown().error}
                       </span>
                     </div>
-                  )}
-                </For>
+                  }
+                >
+                  <For each={shown().results}>
+                    {(result) => (
+                      <div
+                        style={rowStyle}
+                        onMouseDown={() => (pinned = true)}
+                        onClick={() => {
+                          if (!result.text) return
+                          props.copy(result.text)
+                          setCopied(true)
+                        }}
+                      >
+                        <span style={buildLangTagStyle(c)}>{result.lang}</span>
+                        <span style={result.error ? { ...buildTextStyle(c), color: "#f0a35e" } : buildTextStyle(c)}>
+                          {result.error ? `${props.labels.failed}: ${result.error}` : result.text}
+                        </span>
+                      </div>
+                    )}
+                  </For>
+                </Show>
               </Show>
-            </Show>
 
-            <div style={meta}>
-              <Show when={copied()} fallback={props.labels.copy}>
-                {props.labels.copied}
-              </Show>
-              <Show when={shown().truncated}> · {props.labels.truncated}</Show>
+              <div style={buildMetaStyle(c)}>
+                <Show when={copied()} fallback={props.labels.copy}>
+                  {props.labels.copied}
+                </Show>
+                <Show when={shown().truncated}> · {props.labels.truncated}</Show>
+              </div>
             </div>
-          </div>
-        </Portal>
-      )}
+          </Portal>
+        )
+      }}
     </Show>
   )
 }

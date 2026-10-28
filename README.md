@@ -63,25 +63,23 @@ npm run build
 
 ---
 
-## ⚙️ Configuration
+## ⚙️ Settings (GUI)
 
-In your `~/.config/opencode/opencode.json`:
+The plugin adds a dedicated **Translation** page directly inside OpenCode Desktop's **Settings** (`/settings?tab=translate`, icon: `globe`).
 
-```jsonc
-{
-  "plugins": [
-    {
-      "package": "github:Realmagnum/opencode-translate-selection",
-      "options": {
-        // Target languages to translate into (default: ["ru", "en"])
-        "targets": ["ru", "en"],
-        // Enable diagnostic toasts on every selection
-        "debug": false
-      }
-    }
-  ]
-}
-```
+You can customize everything in real-time with an **interactive Live Preview**:
+- **Theme Presets**: Switch instantly between *Amber Gold*, *Midnight OLED*, *Cyberpunk*, *Nordic Slate*, or *Paper Light*.
+- **Custom Colors**: Pick custom background, text, and accent/badge colors, and adjust backdrop opacity (40% – 100%).
+- **Position & Dimensions**:
+  - Quote clearance height (20px – 100px).
+  - Corner border-radius (0px – 24px).
+  - Maximum tooltip width (300px – 800px).
+  - Text font size (10px – 18px).
+- **Target Languages**: Edit comma-separated ISO language codes (e.g. `ru, en, de, fr, es, zh`).
+- **Behavior**: Adjust selection debounce delay (60ms – 400ms) and character limits.
+- **Reset**: Restore defaults with one click.
+
+All changes are saved automatically via OpenCode's `Store.global` and apply instantly without restarting OpenCode.
 
 ---
 

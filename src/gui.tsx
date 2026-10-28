@@ -1,57 +1,102 @@
-import { Plugin, Slot, usePlugin } from "@opencode/plugin/gui"
+import { Plugin, SettingsPage, Slot, Store } from "@opencode/plugin/gui"
+import type { Persisted } from "@opencode/plugin/gui"
 import { Translate } from "./contract"
 import { SelectionPopup } from "./popup"
 import { translate } from "./translate"
+import { DEFAULT_SETTINGS, SettingsSchema, type PluginSettings } from "./settings"
+import { SettingsView } from "./settings-view"
 
-const DEFAULT_TARGETS = ["ru", "en"]
-
-function TranslationSurface() {
-  const ctx = usePlugin()
-  const client = ctx.main(Translate)
-
-  const targets = () => {
-    const value = ctx.options.targets
-    if (!Array.isArray(value) || value.length === 0) return DEFAULT_TARGETS
-
-    return value.filter((lang): lang is string => typeof lang === "string" && lang.trim().length > 0)
-  }
+function TranslationSurface(props: {
+  store: Persisted<PluginSettings>
+  client: ReturnType<any>
+  system: any
+  options: any
+  t: (key: string) => string
+  toast: any
+}) {
+  const settings = () => props.store.value ?? DEFAULT_SETTINGS
 
   return (
     <SelectionPopup
-      targets={targets()}
+      settings={settings}
       labels={{
-        loading: ctx.t("translate.loading"),
-        failed: ctx.t("translate.failed"),
-        truncated: ctx.t("translate.truncated"),
-        copy: ctx.t("translate.copy"),
-        copied: ctx.t("translate.copied"),
+        loading: props.t("translate.loading"),
+        failed: props.t("translate.failed"),
+        truncated: props.t("translate.truncated"),
+        copy: props.t("translate.copy"),
+        copied: props.t("translate.copied"),
       }}
-      translate={(input) => client.run(input)}
-      copy={(text) => void ctx.system.copy(text)}
-      debug={ctx.options.debug === true ? (message) => ctx.toast.show({ title: message }) : undefined}
+      translate={(input) => props.client.run(input)}
+      copy={(text) => void props.system.copy(text)}
+      debug={props.options.debug === true ? (message: string) => props.toast.show({ title: message }) : undefined}
     />
   )
 }
 
+function SettingsTab(props: { store: Persisted<PluginSettings> }) {
+  const settings = () => props.store.value ?? DEFAULT_SETTINGS
+
+  const update = (patch: Partial<PluginSettings>) => {
+    props.store.update((draft) => {
+      Object.assign(draft, patch)
+      return undefined
+    })
+  }
+
+  const reset = () => {
+    props.store.set(DEFAULT_SETTINGS)
+  }
+
+  return <SettingsView settings={settings} update={update} reset={reset} />
+}
+
 export default Plugin.define({
+  stores: {
+    settings: Store.global(SettingsSchema, DEFAULT_SETTINGS),
+  },
   i18n: {
     en: {
       "translate.loading": "Translating…",
       "translate.failed": "Translation failed",
-      "translate.truncated": "selection trimmed to 600 characters",
+      "translate.truncated": "selection trimmed",
       "translate.copy": "click a line to copy",
       "translate.copied": "copied",
+      "settings.title": "Translation",
     },
     ru: {
       "translate.loading": "Перевод…",
       "translate.failed": "Не удалось перевести",
-      "translate.truncated": "выделение обрезано до 600 символов",
+      "translate.truncated": "выделение обрезано",
       "translate.copy": "клик по строке — копировать",
       "translate.copied": "скопировано",
+      "settings.title": "Переводчик",
     },
   },
   setup(ctx) {
-    ctx.add(Slot, { at: "window.bottom", render: () => <TranslationSurface /> })
+    const client = ctx.main(Translate)
+
+    ctx.add(Slot, {
+      at: "window.bottom",
+      render: () => (
+        <TranslationSurface
+          store={ctx.stores.settings}
+          client={client}
+          system={ctx.system}
+          options={ctx.options}
+          t={(k) => ctx.t(k)}
+          toast={ctx.toast}
+        />
+      ),
+    })
+
+    ctx.add(SettingsPage, {
+      id: "translate",
+      icon: "globe",
+      get title() {
+        return ctx.t("settings.title")
+      },
+      render: () => <SettingsTab store={ctx.stores.settings} />,
+    })
   },
   main(ctx) {
     ctx.log.write("info", "translate-selection main ready", { version: ctx.app.version })
