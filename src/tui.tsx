@@ -6,6 +6,7 @@ import type { ScrollBoxRenderable } from "@opentui/core"
 import { readClipboard, writeClipboard } from "./clipboard.ts"
 import { translate, type TransOutput } from "./translate.ts"
 import { getLastAssistantText, formatTransOutputMarkdown, formatKey } from "./tui-extract.ts"
+import { getSystemLocale, isRussianLocale, tuiText } from "./i18n.ts"
 
 const PANEL_NAME = "translate.panel"
 
@@ -29,7 +30,7 @@ export const DEFAULT_TUI_SETTINGS: TuiSettings = {
   keyPanel: "alt+p",
 }
 
-export { formatKey }
+export { formatKey, getSystemLocale, isRussianLocale, tuiText }
 
 export interface LatestTranslationState {
   originalText: string
@@ -69,7 +70,7 @@ function TranslationModal(props: {
     commands: [
       {
         id: "translate.modal.copy",
-        title: "Копировать",
+        title: tuiText("Копировать", "Copy"),
         bind: "y",
         run: () => {
           handleCopy()
@@ -77,7 +78,7 @@ function TranslationModal(props: {
       },
       {
         id: "translate.modal.copy_and_close",
-        title: "Копировать и закрыть",
+        title: tuiText("Копировать и закрыть", "Copy and close"),
         bind: "return",
         run: () => {
           handleCopy()
@@ -86,7 +87,7 @@ function TranslationModal(props: {
       },
       {
         id: "translate.modal.panel",
-        title: "Открыть в боковой панели",
+        title: tuiText("Открыть в боковой панели", "Open in side panel"),
         bind: "p",
         run: () => {
           props.onOpenPanel()
@@ -94,7 +95,7 @@ function TranslationModal(props: {
       },
       {
         id: "translate.modal.close",
-        title: "Закрыть",
+        title: tuiText("Закрыть", "Close"),
         bind: "escape",
         run: () => {
           props.onClose()
@@ -102,7 +103,7 @@ function TranslationModal(props: {
       },
       {
         id: "translate.modal.close_q",
-        title: "Закрыть",
+        title: tuiText("Закрыть", "Close"),
         bind: "q",
         run: () => {
           props.onClose()
@@ -110,7 +111,7 @@ function TranslationModal(props: {
       },
       {
         id: "translate.modal.down",
-        title: "Вниз",
+        title: tuiText("Вниз", "Down"),
         bind: "down,j",
         run: () => {
           scrollRef?.scrollBy(2)
@@ -118,7 +119,7 @@ function TranslationModal(props: {
       },
       {
         id: "translate.modal.up",
-        title: "Вверх",
+        title: tuiText("Вверх", "Up"),
         bind: "up,k",
         run: () => {
           scrollRef?.scrollBy(-2)
@@ -126,7 +127,7 @@ function TranslationModal(props: {
       },
       {
         id: "translate.modal.pagedown",
-        title: "Страница вниз",
+        title: tuiText("Страница вниз", "Page down"),
         bind: "pagedown,space",
         run: () => {
           scrollRef?.scrollBy(6)
@@ -134,7 +135,7 @@ function TranslationModal(props: {
       },
       {
         id: "translate.modal.pageup",
-        title: "Страница вверх",
+        title: tuiText("Страница вверх", "Page up"),
         bind: "pageup",
         run: () => {
           scrollRef?.scrollBy(-6)
@@ -165,10 +166,10 @@ function TranslationModal(props: {
         borderColor={theme().border?.base ?? "#334155"}
       >
         <box flexDirection="row" gap={1} alignItems="center">
-          <text fg="#ffd75e">{"🌐 ПЕРЕВОД"}</text>
+          <text fg="#ffd75e">{tuiText("🌐 ПЕРЕВОД", "🌐 TRANSLATION")}</text>
           <text fg="#38bdf8">{`[${detected} → ${targetLangs}]`}</text>
         </box>
-        <text fg={theme().text?.subdued ?? "#94a3b8"}>{"[Esc / q] Закрыть"}</text>
+        <text fg={theme().text?.subdued ?? "#94a3b8"}>{tuiText("[Esc / q] Закрыть", "[Esc / q] Close")}</text>
       </box>
 
       {/* Main Full Scrollable Translation Text */}
@@ -191,11 +192,11 @@ function TranslationModal(props: {
                       <text fg="#a3e635">{"• LLM"}</text>
                     </Show>
                     <Show when={res.error}>
-                      <text fg="#ef4444">{`(Ошибка: ${res.error})`}</text>
+                      <text fg="#ef4444">{`(${tuiText("Ошибка", "Error")}: ${res.error})`}</text>
                     </Show>
                   </box>
                   <text wrapMode="word" fg={theme().text?.default ?? "#f8fafc"}>
-                    {res.text || "(пустой перевод)"}
+                    {res.text || tuiText("(пустой перевод)", "(empty translation)")}
                   </text>
                 </box>
               )}
@@ -214,14 +215,14 @@ function TranslationModal(props: {
         borderColor={theme().border?.base ?? "#334155"}
       >
         <box flexDirection="row" flexWrap="wrap" columnGap={1}>
-          <text fg={theme().text?.subdued ?? "#94a3b8"}>{"[y] Копия"}</text>
-          <text fg={theme().text?.subdued ?? "#94a3b8"}>{"[Enter] Копия+Закрыть"}</text>
-          <text fg={theme().text?.subdued ?? "#94a3b8"}>{"[p] В панель"}</text>
-          <text fg={theme().text?.subdued ?? "#94a3b8"}>{"[↑/↓] Скролл"}</text>
-          <text fg={theme().text?.subdued ?? "#94a3b8"}>{"[q] Закрыть"}</text>
+          <text fg={theme().text?.subdued ?? "#94a3b8"}>{tuiText("[y] Копия", "[y] Copy")}</text>
+          <text fg={theme().text?.subdued ?? "#94a3b8"}>{tuiText("[Enter] Копия+Закрыть", "[Enter] Copy+Close")}</text>
+          <text fg={theme().text?.subdued ?? "#94a3b8"}>{tuiText("[p] В панель", "[p] Panel")}</text>
+          <text fg={theme().text?.subdued ?? "#94a3b8"}>{tuiText("[↑/↓] Скролл", "[↑/↓] Scroll")}</text>
+          <text fg={theme().text?.subdued ?? "#94a3b8"}>{tuiText("[q] Закрыть", "[q] Close")}</text>
         </box>
         <Show when={copied()}>
-          <text fg="#10b981">{"✓ Скопировано!"}</text>
+          <text fg="#10b981">{tuiText("✓ Скопировано!", "✓ Copied!")}</text>
         </Show>
       </box>
     </box>
@@ -255,37 +256,40 @@ function TranslationPanel(props: {
     commands: [
       {
         id: "translate.panel.clipboard",
-        title: "Перевести буфер обмена",
+        title: tuiText("Перевести буфер обмена", "Translate clipboard"),
         bind: "t",
         run: () => props.onTranslateClipboard(),
       },
       {
         id: "translate.panel.last",
-        title: "Перевести последний ответ",
+        title: tuiText("Перевести последний ответ", "Translate last response"),
         bind: "l",
         run: () => props.onTranslateLast(),
       },
       {
         id: "translate.panel.copy",
-        title: "Скопировать перевод",
+        title: tuiText("Скопировать перевод", "Copy translation"),
         bind: "y",
         run: () => props.onCopyTranslation(),
       },
       {
         id: "translate.panel.mode",
-        title: "Переключить режим движка",
+        title: tuiText("Переключить режим движка", "Cycle engine mode"),
         bind: "m",
         run: () => props.onCycleEngineMode(),
       },
       {
         id: "translate.panel.fullscreen",
-        title: "Полноэкранный режим",
+        title: tuiText("Полноэкранный режим", "Fullscreen mode"),
         bind: "f",
         run: () => {
           if (panel.width < 108) {
             ctx.ui.toast.show({
-              title: "Размер окна",
-              message: "Терминал узкий (< 108 колонок), панель уже занимает всё доступное место",
+              title: tuiText("Размер окна", "Window size"),
+              message: tuiText(
+                "Терминал узкий (< 108 колонок), панель уже занимает всё доступное место",
+                "Terminal is narrow (< 108 columns), panel already occupies full space",
+              ),
               variant: "info",
               duration: 2500,
             })
@@ -294,14 +298,16 @@ function TranslationPanel(props: {
           panel.toggleFullscreen()
           const isFull = panel.presentation === "fullscreen"
           ctx.ui.toast.show({
-            message: isFull ? "Обычный вид панели" : "Панель на полный экран",
+            message: isFull
+              ? tuiText("Обычный вид панели", "Standard panel view")
+              : tuiText("Панель на полный экран", "Fullscreen panel"),
             duration: 1500,
           })
         },
       },
       {
         id: "translate.panel.scroll_down",
-        title: "Вниз",
+        title: tuiText("Вниз", "Down"),
         bind: "down,j",
         run: () => {
           scrollRef?.scrollBy(2)
@@ -309,7 +315,7 @@ function TranslationPanel(props: {
       },
       {
         id: "translate.panel.scroll_up",
-        title: "Вверх",
+        title: tuiText("Вверх", "Up"),
         bind: "up,k",
         run: () => {
           scrollRef?.scrollBy(-2)
@@ -317,7 +323,7 @@ function TranslationPanel(props: {
       },
       {
         id: "translate.panel.page_down",
-        title: "Страница вниз",
+        title: tuiText("Страница вниз", "Page down"),
         bind: "pagedown,space",
         run: () => {
           scrollRef?.scrollBy(6)
@@ -325,7 +331,7 @@ function TranslationPanel(props: {
       },
       {
         id: "translate.panel.page_up",
-        title: "Страница вверх",
+        title: tuiText("Страница вверх", "Page up"),
         bind: "pageup",
         run: () => {
           scrollRef?.scrollBy(-6)
@@ -333,13 +339,13 @@ function TranslationPanel(props: {
       },
       {
         id: "translate.panel.close",
-        title: "Закрыть панель",
+        title: tuiText("Закрыть панель", "Close panel"),
         bind: "escape",
         run: panel.close,
       },
       {
         id: "translate.panel.close_q",
-        title: "Закрыть панель",
+        title: tuiText("Закрыть панель", "Close panel"),
         bind: "q",
         run: panel.close,
       },
@@ -373,13 +379,13 @@ function TranslationPanel(props: {
         <box flexDirection="row" justifyContent="space-between" alignItems="center">
           <box flexDirection="row" gap={1} alignItems="center">
             <text fg="#ffd75e">{"🌐"}</text>
-            <text fg="#ffd75e">{"ПЕРЕВОД"}</text>
+            <text fg="#ffd75e">{tuiText("ПЕРЕВОД", "TRANSLATION")}</text>
           </box>
           <Show
             when={props.panel.focused}
-            fallback={<text fg="#f59e0b">{"(фокус)"}</text>}
+            fallback={<text fg="#f59e0b">{tuiText("(фокус)", "(focus)")}</text>}
           >
-            <text fg="#10b981">{"[фокус]"}</text>
+            <text fg="#10b981">{tuiText("[фокус]", "[focus]")}</text>
           </Show>
         </box>
         <box flexDirection="row" gap={1} paddingTop={0} alignItems="center">
@@ -390,13 +396,13 @@ function TranslationPanel(props: {
       {/* Status Notifications */}
       <Show when={props.latest.status === "translating"}>
         <box paddingTop={1}>
-          <text fg="#facc15">{"⏳ Перевод в процессе..."}</text>
+          <text fg="#facc15">{tuiText("⏳ Перевод в процессе...", "⏳ Translating...")}</text>
         </box>
       </Show>
 
       <Show when={props.latest.status === "error"}>
         <box paddingTop={1}>
-          <text fg="#ef4444">{`❌ Ошибка: ${props.latest.errorMessage || "Неизвестная ошибка"}`}</text>
+          <text fg="#ef4444">{`❌ ${tuiText("Ошибка", "Error")}: ${props.latest.errorMessage || tuiText("Неизвестная ошибка", "Unknown error")}`}</text>
         </box>
       </Show>
 
@@ -415,17 +421,20 @@ function TranslationPanel(props: {
             fallback={
               <box flexDirection="column" gap={1}>
                 <text fg={theme().text?.subdued ?? "#94a3b8"}>
-                  {"Перевод пока не выполнен."}
+                  {tuiText("Перевод пока не выполнен.", "No translation performed yet.")}
                 </text>
                 <text fg={theme().text?.subdued ?? "#94a3b8"}>
-                  {"Нажмите [t] для перевода буфера или [l] для перевода ответа ассистента."}
+                  {tuiText(
+                    "Нажмите [t] для перевода буфера или [l] для перевода ответа ассистента.",
+                    "Press [t] to translate clipboard or [l] to translate assistant reply.",
+                  )}
                 </text>
               </box>
             }
           >
             <box flexDirection="column" gap={1}>
               <Show when={props.latest.source}>
-                <text fg="#64748b">{`Источник: ${props.latest.source}`}</text>
+                <text fg="#64748b">{`${tuiText("Источник", "Source")}: ${props.latest.source}`}</text>
               </Show>
               <For each={props.latest.output!.results}>
                 {(res) => (
@@ -436,11 +445,11 @@ function TranslationPanel(props: {
                         <text fg="#a3e635">{"• LLM"}</text>
                       </Show>
                       <Show when={res.error}>
-                        <text fg="#ef4444">{`(Ошибка: ${res.error})`}</text>
+                        <text fg="#ef4444">{`(${tuiText("Ошибка", "Error")}: ${res.error})`}</text>
                       </Show>
                     </box>
                     <text wrapMode="word" fg={theme().text?.default ?? "#f8fafc"}>
-                      {res.text || "(пустой перевод)"}
+                      {res.text || tuiText("(пустой перевод)", "(empty translation)")}
                     </text>
                   </box>
                 )}
@@ -459,16 +468,16 @@ function TranslationPanel(props: {
         gap={0}
       >
         <box flexDirection="row" flexWrap="wrap" columnGap={1} rowGap={0}>
-          <text fg={theme().text?.subdued ?? "#94a3b8"}>{"[t] Буфер"}</text>
-          <text fg={theme().text?.subdued ?? "#94a3b8"}>{"[l] Ответ"}</text>
-          <text fg={theme().text?.subdued ?? "#94a3b8"}>{"[y] Копия"}</text>
-          <text fg={theme().text?.subdued ?? "#94a3b8"}>{"[m] Режим"}</text>
-          <text fg={theme().text?.subdued ?? "#94a3b8"}>{"[f] Экран"}</text>
-          <text fg={theme().text?.subdued ?? "#94a3b8"}>{"[q] Выход"}</text>
+          <text fg={theme().text?.subdued ?? "#94a3b8"}>{tuiText("[t] Буфер", "[t] Clip")}</text>
+          <text fg={theme().text?.subdued ?? "#94a3b8"}>{tuiText("[l] Ответ", "[l] Turn")}</text>
+          <text fg={theme().text?.subdued ?? "#94a3b8"}>{tuiText("[y] Копия", "[y] Copy")}</text>
+          <text fg={theme().text?.subdued ?? "#94a3b8"}>{tuiText("[m] Режим", "[m] Mode")}</text>
+          <text fg={theme().text?.subdued ?? "#94a3b8"}>{tuiText("[f] Экран", "[f] Full")}</text>
+          <text fg={theme().text?.subdued ?? "#94a3b8"}>{tuiText("[q] Выход", "[q] Quit")}</text>
         </box>
         <Show when={props.latest.lastCopied}>
           <box paddingTop={0}>
-            <text fg="#10b981">{"✓ Перевод скопирован в буфер!"}</text>
+            <text fg="#10b981">{tuiText("✓ Перевод скопирован в буфер!", "✓ Translation copied to clipboard!")}</text>
           </box>
         </Show>
       </box>
@@ -584,7 +593,10 @@ export default Plugin.define({
           onClose={() => context.ui.dialog.clear()}
           onCopy={async () => {
             await copyToClipboard(markdown)
-            context.ui.toast.show({ message: "✓ Перевод скопирован в буфер", variant: "success" })
+            context.ui.toast.show({
+              message: tuiText("✓ Перевод скопирован в буфер", "✓ Translation copied to clipboard"),
+              variant: "success",
+            })
           }}
           onOpenPanel={() => {
             context.ui.dialog.clear()
@@ -612,35 +624,42 @@ export default Plugin.define({
         if (isPanelOpen) {
           const keyName = formatKey(settings.keyClipboard || "alt+t")
           context.ui.toast.show({
-            title: "Перевод",
-            message: `Буфер обмена пуст. Скопируйте текст перед нажатием ${keyName}.`,
+            title: tuiText("Перевод", "Translation"),
+            message: tuiText(
+              `Буфер обмена пуст. Скопируйте текст перед нажатием ${keyName}.`,
+              `Clipboard is empty. Copy text before pressing ${keyName}.`,
+            ),
             variant: "warning",
           })
           return
         }
 
         const prompted = await context.ui.dialog.prompt({
-          title: "🌐 Перевод текста",
-          placeholder: "Введите или вставьте текст для перевода...",
+          title: tuiText("🌐 Перевод текста", "🌐 Text Translation"),
+          placeholder: tuiText("Введите или вставьте текст для перевода...", "Enter or paste text to translate..."),
         })
         if (!prompted?.trim()) return
         textToTranslate = prompted.trim()
       }
 
       if (isPanelOpen) {
-        context.ui.toast.show({ message: "Перевод...", duration: 1500 })
+        context.ui.toast.show({ message: tuiText("Перевод...", "Translating..."), duration: 1500 })
       } else {
-        context.ui.toast.show({ message: "Перевод...", duration: 2000 })
+        context.ui.toast.show({ message: tuiText("Перевод...", "Translating..."), duration: 2000 })
       }
 
       try {
-        const output = await performTranslation(textToTranslate, "Буфер обмена", sessionID)
+        const output = await performTranslation(
+          textToTranslate,
+          tuiText("Буфер обмена", "Clipboard"),
+          sessionID,
+        )
         if (!output) return
 
         // Если боковая панель открыта — просто обновляем её без модального окна!
         if (isPanelOpen) {
           context.ui.toast.show({
-            message: "✓ Перевод обновлён в панели",
+            message: tuiText("✓ Перевод обновлён в панели", "✓ Translation updated in panel"),
             duration: 1500,
             variant: "success",
           })
@@ -651,8 +670,8 @@ export default Plugin.define({
         showTranslationModal(output, textToTranslate)
       } catch (err: any) {
         context.ui.toast.show({
-          title: "Ошибка перевода",
-          message: err?.message || "Не удалось перевести",
+          title: tuiText("Ошибка перевода", "Translation error"),
+          message: err?.message || tuiText("Не удалось перевести", "Translation failed"),
           variant: "error",
         })
       }
@@ -665,8 +684,11 @@ export default Plugin.define({
       const currentRoute = context.ui.router.current()
       if (currentRoute.type !== "session") {
         context.ui.toast.show({
-          title: "Перевод",
-          message: "Откройте сессию для перевода ответа ассистента",
+          title: tuiText("Перевод", "Translation"),
+          message: tuiText(
+            "Откройте сессию для перевода ответа ассистента",
+            "Open a session to translate assistant reply",
+          ),
           variant: "warning",
         })
         return
@@ -675,27 +697,37 @@ export default Plugin.define({
       const sessionID = currentRoute.sessionID
       const isPanelOpen = context.ui.panel.current()?.name === PANEL_NAME
 
-      context.ui.toast.show({ message: "Получение ответа ассистента...", duration: 1500 })
+      context.ui.toast.show({
+        message: tuiText("Получение ответа ассистента...", "Fetching assistant message..."),
+        duration: 1500,
+      })
 
       const text = await getLastAssistantText(context, sessionID)
       if (!text) {
         context.ui.toast.show({
-          title: "Перевод",
-          message: "В текущей сессии нет сообщений ассистента",
+          title: tuiText("Перевод", "Translation"),
+          message: tuiText(
+            "В текущей сессии нет сообщений ассистента",
+            "No assistant messages in current session",
+          ),
           variant: "warning",
         })
         return
       }
 
-      context.ui.toast.show({ message: "Перевод...", duration: 2000 })
+      context.ui.toast.show({ message: tuiText("Перевод...", "Translating..."), duration: 2000 })
 
       try {
-        const output = await performTranslation(text, "Последний ответ ассистента", sessionID)
+        const output = await performTranslation(
+          text,
+          tuiText("Последний ответ ассистента", "Last assistant message"),
+          sessionID,
+        )
         if (!output) return
 
         if (isPanelOpen) {
           context.ui.toast.show({
-            message: "✓ Перевод обновлён в панели",
+            message: tuiText("✓ Перевод обновлён в панели", "✓ Translation updated in panel"),
             duration: 1500,
             variant: "success",
           })
@@ -705,8 +737,8 @@ export default Plugin.define({
         showTranslationModal(output, text)
       } catch (err: any) {
         context.ui.toast.show({
-          title: "Ошибка перевода",
-          message: err?.message || "Не удалось перевести",
+          title: tuiText("Ошибка перевода", "Translation error"),
+          message: err?.message || tuiText("Не удалось перевести", "Translation failed"),
           variant: "error",
         })
       }
@@ -726,13 +758,19 @@ export default Plugin.define({
 
       const desc =
         nextMode === "auto"
-          ? "AUTO (Google MT для простых фраз, LLM для кода и списков)"
+          ? tuiText(
+              "AUTO (Google MT для простых фраз, LLM для кода и списков)",
+              "AUTO (Google MT for simple phrases, LLM for code & lists)",
+            )
           : nextMode === "fast"
-            ? "FAST (Только Google Translate / MyMemory, 0 токенов)"
-            : "LLM (Перевод моделью активной сессии)"
+            ? tuiText(
+                "FAST (Только Google Translate / MyMemory, 0 токенов)",
+                "FAST (Google Translate / MyMemory only, 0 tokens)",
+              )
+            : tuiText("LLM (Перевод моделью активной сессии)", "LLM (Translate using active session model)")
 
       context.ui.toast.show({
-        title: "Режим перевода",
+        title: tuiText("Режим перевода", "Translation mode"),
         message: desc,
         variant: "info",
         duration: 3000,
@@ -744,7 +782,10 @@ export default Plugin.define({
      */
     async function handleCopyTranslation() {
       if (!latest.output) {
-        context.ui.toast.show({ message: "Нет перевода для копирования", variant: "warning" })
+        context.ui.toast.show({
+          message: tuiText("Нет перевода для копирования", "No translation to copy"),
+          variant: "warning",
+        })
         return
       }
 
@@ -754,7 +795,10 @@ export default Plugin.define({
         updateLatest((draft) => {
           draft.lastCopied = true
         })
-        context.ui.toast.show({ message: "✓ Скопировано в буфер обмена", variant: "success" })
+        context.ui.toast.show({
+          message: tuiText("✓ Скопировано в буфер обмена", "✓ Copied to clipboard"),
+          variant: "success",
+        })
       }
     }
 
@@ -767,62 +811,86 @@ export default Plugin.define({
       const panelKey = formatKey(settings.keyPanel || "alt+p")
 
       const picked = await context.ui.dialog.select<"languages" | "engine" | "hotkeys" | "reset">({
-        title: "⚙️ Настройки перевода (TUI)",
+        title: tuiText("⚙️ Настройки перевода (TUI)", "⚙️ Translation Settings (TUI)"),
         options: [
           {
-            title: `Языки перевода: [${settings.targets}]`,
+            title: `${tuiText("Языки перевода", "Target Languages")}: [${settings.targets}]`,
             value: "languages",
-            description: "Коды языков через запятую (например, ru, en или просто ru)",
+            description: tuiText(
+              "Коды языков через запятую (например, ru, en или просто ru)",
+              "Comma-separated language codes (e.g. ru, en or just ru)",
+            ),
           },
           {
-            title: `Режим движка: [${settings.engineMode.toUpperCase()}]`,
+            title: `${tuiText("Режим движка", "Engine Mode")}: [${settings.engineMode.toUpperCase()}]`,
             value: "engine",
             description: "Auto (Smart Hybrid) / Fast MT (Google) / Session LLM",
           },
           {
-            title: `Горячие клавиши: [${clipKey}, ${lastKey}, ${panelKey}]`,
+            title: `${tuiText("Горячие клавиши", "Keybindings")}: [${clipKey}, ${lastKey}, ${panelKey}]`,
             value: "hotkeys",
-            description: "Настроить комбинации клавиш (для Ghostty, iTerm2 и других эмуляторов)",
+            description: tuiText(
+              "Настроить комбинации клавиш (для Ghostty, iTerm2 и других эмуляторов)",
+              "Customize key combinations (for Ghostty, iTerm2, and other emulators)",
+            ),
           },
           {
-            title: "Сбросить к умолчаниям",
+            title: tuiText("Сбросить к умолчаниям", "Reset to Defaults"),
             value: "reset",
-            description: "Вернуть целевые языки, режим и хоткеи к стандартным",
+            description: tuiText(
+              "Вернуть целевые языки, режим и хоткеи к стандартным",
+              "Reset target languages, mode, and keybindings to default",
+            ),
           },
         ],
       })
 
       if (picked === "languages") {
         const input = await context.ui.dialog.prompt({
-          title: "Целевые языки",
-          description: "Введите ISO-коды языков через запятую (например: ru, en, de, zh)",
+          title: tuiText("Целевые языки", "Target Languages"),
+          description: tuiText(
+            "Введите ISO-коды языков через запятую (например: ru, en, de, zh)",
+            "Enter comma-separated ISO language codes (e.g.: ru, en, de, zh)",
+          ),
           value: settings.targets,
         })
         if (input && input.trim()) {
           await updateSettings((draft) => {
             draft.targets = input.trim()
           })
-          context.ui.toast.show({ message: `Целевые языки: ${input.trim()}`, variant: "success" })
+          context.ui.toast.show({
+            message: `${tuiText("Целевые языки", "Target Languages")}: ${input.trim()}`,
+            variant: "success",
+          })
         }
       } else if (picked === "engine") {
         const mode = await context.ui.dialog.select<"auto" | "fast" | "llm">({
-          title: "Режим движка",
+          title: tuiText("Режим движка", "Engine Mode"),
           current: settings.engineMode,
           options: [
             {
               title: "Auto (Smart Hybrid)",
               value: "auto",
-              description: "Google MT для простых фраз, Session LLM для списков и кода",
+              description: tuiText(
+                "Google MT для простых фраз, Session LLM для списков и кода",
+                "Google MT for simple phrases, Session LLM for lists and code",
+              ),
             },
             {
               title: "Fast MT Only",
               value: "fast",
-              description: "Google Translate / MyMemory с нулевым расходом токенов",
+              description: tuiText(
+                "Google Translate / MyMemory с нулевым расходом токенов",
+                "Google Translate / MyMemory with zero token usage",
+              ),
             },
             {
               title: "Session LLM Only",
               value: "llm",
-              description: "Всегда переводить моделью текущей сессии",
+              description: tuiText(
+                "Всегда переводить моделью текущей сессии",
+                "Always translate using active session model",
+              ),
             },
           ],
         })
@@ -830,39 +898,54 @@ export default Plugin.define({
           await updateSettings((draft) => {
             draft.engineMode = mode
           })
-          context.ui.toast.show({ message: `Режим: ${mode.toUpperCase()}`, variant: "success" })
+          context.ui.toast.show({
+            message: `${tuiText("Режим", "Mode")}: ${mode.toUpperCase()}`,
+            variant: "success",
+          })
         }
       } else if (picked === "hotkeys") {
         const keyAction = await context.ui.dialog.select<"clipboard" | "last" | "panel" | "reset_keys">({
-          title: "⌨️ Настройка горячих клавиш TUI",
+          title: tuiText("⌨️ Настройка горячих клавиш TUI", "⌨️ TUI Keybindings Settings"),
           options: [
             {
-              title: `Перевод буфера: [${formatKey(settings.keyClipboard || "alt+t")}]`,
+              title: `${tuiText("Перевод буфера", "Translate clipboard")}: [${formatKey(settings.keyClipboard || "alt+t")}]`,
               value: "clipboard",
-              description: "Комбинация для перевода выделенного/скопированного текста (по умолч.: alt+t)",
+              description: tuiText(
+                "Комбинация для перевода выделенного/скопированного текста (по умолч.: alt+t)",
+                "Key combination to translate selected/copied text (default: alt+t)",
+              ),
             },
             {
-              title: `Перевод ответа ассистента: [${formatKey(settings.keyLastTurn || "alt+shift+t")}]`,
+              title: `${tuiText("Перевод ответа ассистента", "Translate assistant reply")}: [${formatKey(settings.keyLastTurn || "alt+shift+t")}]`,
               value: "last",
-              description: "Комбинация для перевода последнего ответа модели (по умолч.: alt+shift+t)",
+              description: tuiText(
+                "Комбинация для перевода последнего ответа модели (по умолч.: alt+shift+t)",
+                "Key combination to translate last model response (default: alt+shift+t)",
+              ),
             },
             {
-              title: `Боковая панель: [${formatKey(settings.keyPanel || "alt+p")}]`,
+              title: `${tuiText("Боковая панель", "Side panel")}: [${formatKey(settings.keyPanel || "alt+p")}]`,
               value: "panel",
-              description: "Комбинация для открытия/закрытия боковой панели (по умолч.: alt+p)",
+              description: tuiText(
+                "Комбинация для открытия/закрытия боковой панели (по умолч.: alt+p)",
+                "Key combination to open/close side panel (default: alt+p)",
+              ),
             },
             {
-              title: "Сбросить хоткеи к умолчаниям",
+              title: tuiText("Сбросить хоткеи к умолчаниям", "Reset hotkeys to defaults"),
               value: "reset_keys",
-              description: "Вернуть alt+t, alt+shift+t, alt+p",
+              description: tuiText("Вернуть alt+t, alt+shift+t, alt+p", "Reset to alt+t, alt+shift+t, alt+p"),
             },
           ],
         })
 
         if (keyAction === "clipboard") {
           const val = await context.ui.dialog.prompt({
-            title: "Хоткей: Перевод буфера обмена",
-            description: "Введите комбинацию клавиш (например: alt+t, alt+y, ctrl+t, alt+c):",
+            title: tuiText("Хоткей: Перевод буфера обмена", "Hotkey: Translate Clipboard"),
+            description: tuiText(
+              "Введите комбинацию клавиш (например: alt+t, alt+y, ctrl+t, alt+c):",
+              "Enter key combination (e.g.: alt+t, alt+y, ctrl+t, alt+c):",
+            ),
             value: settings.keyClipboard || "alt+t",
           })
           if (val && val.trim()) {
@@ -871,14 +954,17 @@ export default Plugin.define({
               draft.keyClipboard = cleanKey
             })
             context.ui.toast.show({
-              message: `Хоткей перевода буфера: ${formatKey(cleanKey)}`,
+              message: `${tuiText("Хоткей перевода буфера", "Clipboard hotkey")}: ${formatKey(cleanKey)}`,
               variant: "success",
             })
           }
         } else if (keyAction === "last") {
           const val = await context.ui.dialog.prompt({
-            title: "Хоткей: Перевод ответа ассистента",
-            description: "Введите комбинацию клавиш (например: alt+shift+t, alt+shift+y, ctrl+shift+t):",
+            title: tuiText("Хоткей: Перевод ответа ассистента", "Hotkey: Translate Assistant Reply"),
+            description: tuiText(
+              "Введите комбинацию клавиш (например: alt+shift+t, alt+shift+y, ctrl+shift+t):",
+              "Enter key combination (e.g.: alt+shift+t, alt+shift+y, ctrl+shift+t):",
+            ),
             value: settings.keyLastTurn || "alt+shift+t",
           })
           if (val && val.trim()) {
@@ -887,14 +973,17 @@ export default Plugin.define({
               draft.keyLastTurn = cleanKey
             })
             context.ui.toast.show({
-              message: `Хоткей последнего ответа: ${formatKey(cleanKey)}`,
+              message: `${tuiText("Хоткей последнего ответа", "Last reply hotkey")}: ${formatKey(cleanKey)}`,
               variant: "success",
             })
           }
         } else if (keyAction === "panel") {
           const val = await context.ui.dialog.prompt({
-            title: "Хоткей: Боковая панель перевода",
-            description: "Введите комбинацию клавиш (например: alt+p, alt+o, ctrl+p):",
+            title: tuiText("Хоткей: Боковая панель перевода", "Hotkey: Translation Side Panel"),
+            description: tuiText(
+              "Введите комбинацию клавиш (например: alt+p, alt+o, ctrl+p):",
+              "Enter key combination (e.g.: alt+p, alt+o, ctrl+p):",
+            ),
             value: settings.keyPanel || "alt+p",
           })
           if (val && val.trim()) {
@@ -903,7 +992,7 @@ export default Plugin.define({
               draft.keyPanel = cleanKey
             })
             context.ui.toast.show({
-              message: `Хоткей боковой панели: ${formatKey(cleanKey)}`,
+              message: `${tuiText("Хоткей боковой панели", "Side panel hotkey")}: ${formatKey(cleanKey)}`,
               variant: "success",
             })
           }
@@ -914,7 +1003,10 @@ export default Plugin.define({
             draft.keyPanel = "alt+p"
           })
           context.ui.toast.show({
-            message: "Хоткеи сброшены к Alt+T, Alt+Shift+T, Alt+P",
+            message: tuiText(
+              "Хоткеи сброшены к Alt+T, Alt+Shift+T, Alt+P",
+              "Hotkeys reset to Alt+T, Alt+Shift+T, Alt+P",
+            ),
             variant: "info",
           })
         }
@@ -922,7 +1014,10 @@ export default Plugin.define({
         await updateSettings((draft) => {
           Object.assign(draft, DEFAULT_TUI_SETTINGS)
         })
-        context.ui.toast.show({ message: "Настройки сброшены", variant: "info" })
+        context.ui.toast.show({
+          message: tuiText("Настройки сброшены", "Settings reset to defaults"),
+          variant: "info",
+        })
       }
     }
 
@@ -938,8 +1033,8 @@ export default Plugin.define({
           commands: [
             {
               id: "translate.clipboard",
-              title: "Translate clipboard selection",
-              group: "Translation",
+              title: tuiText("Перевести буфер обмена", "Translate clipboard selection"),
+              group: tuiText("Перевод", "Translation"),
               bind: settings.keyClipboard || "alt+t",
               palette: true,
               slash: { name: "translate", aliases: ["tr"], arguments: true },
@@ -950,8 +1045,8 @@ export default Plugin.define({
             },
             {
               id: "translate.last",
-              title: "Translate last assistant message",
-              group: "Translation",
+              title: tuiText("Перевести последний ответ ассистента", "Translate last assistant message"),
+              group: tuiText("Перевод", "Translation"),
               bind: settings.keyLastTurn || "alt+shift+t",
               palette: true,
               slash: { name: "translate-last", aliases: ["trl"] },
@@ -961,8 +1056,8 @@ export default Plugin.define({
             },
             {
               id: "translate.panel",
-              title: "Toggle translation side panel",
-              group: "Translation",
+              title: tuiText("Открыть/закрыть боковую панель перевода", "Toggle translation side panel"),
+              group: tuiText("Перевод", "Translation"),
               bind: settings.keyPanel || "alt+p",
               palette: true,
               slash: { name: "translate-panel", aliases: ["trp"] },
@@ -972,15 +1067,21 @@ export default Plugin.define({
                   context.ui.panel.close()
                 } else {
                   if (!context.ui.panel.open(PANEL_NAME)) {
-                    context.ui.toast.show({ message: "Open a session first to view side panel", variant: "warning" })
+                    context.ui.toast.show({
+                      message: tuiText(
+                        "Откройте сессию для просмотра боковой панели",
+                        "Open a session first to view side panel",
+                      ),
+                      variant: "warning",
+                    })
                   }
                 }
               },
             },
             {
               id: "translate.config",
-              title: "Translation settings",
-              group: "Translation",
+              title: tuiText("Настройки перевода (TUI)", "Translation settings (TUI)"),
+              group: tuiText("Перевод", "Translation"),
               palette: true,
               slash: { name: "translate-config" },
               run: async () => {

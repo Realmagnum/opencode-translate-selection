@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.2] - 2026-10-28
+
+### Added
+- **Full Dynamic Internationalization (i18n) for Plugin Settings & UI**:
+  - The entire Settings page, preset names, live preview mockup, control labels, section titles, and action buttons now dynamically adapt to the active interface and system language.
+  - Comprehensive localization catalogs added for major world languages:
+    - English (`en`, `en-US`, `en-GB`)
+    - Russian (`ru`, `ru-RU`)
+    - Simplified & Traditional Chinese (`zh`, `zh-CN`, `zh-Hans`, `zht`, `zh-TW`, `zh-Hant`)
+    - German (`de`, `de-DE`)
+    - Spanish (`es`, `es-ES`)
+    - French (`fr`, `fr-FR`)
+    - Japanese (`ja`, `ja-JP`)
+  - Reactive `SettingsPage` factory registration (`ctx.add(SettingsPage, () => ({ ... }))`) ensuring the settings navigation sidebar label updates instantly when switching language in OpenCode.
+  - Dynamic getters in `TranslationSurface` labels ensuring the popup tooltip labels re-render reactively.
+  - Intelligent default target languages on reset (`getDefaultTargetsForLocale`), adapting default targets to the active system locale (`ru, en`, `zh, en`, `de, en`, `es, en`, `fr, en`, `ja, en`, etc.).
+  - Added locale awareness to terminal TUI dialogs and commands, automatically displaying in Russian or English based on system locale (`LANG`, `LC_ALL`, `Intl`).
+- **Comprehensive i18n Test Suite**:
+  - Added unit tests verifying key completeness across all 7 supported dictionaries, parameter interpolation, country-code matching, fallback behavior, and locale-based defaults (28 unit tests, 100% passing).
+
+### Removed
+- Removed outdated `STRUCTURED-TRANSLATION-SPEC.md`.
+
+---
+
 ## [0.3.1] - 2026-10-28
 
 ### Added

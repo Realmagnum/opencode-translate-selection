@@ -8,6 +8,7 @@ import { SelectionPopup } from "./popup"
 import { translate } from "./translate"
 import { DEFAULT_SETTINGS, SettingsSchema, type PluginSettings, type StoredSettings } from "./settings"
 import { SettingsView } from "./settings-view"
+import { I18N_CATALOG, getDefaultTargetsForLocale, type TranslationParams } from "./i18n"
 
 function getTuiSettingsPath(): string {
   const home = os.homedir()
@@ -20,7 +21,7 @@ function TranslationSurface(props: {
   client: ReturnType<any>
   system: any
   options: any
-  t: (key: string) => string
+  t: (key: string, params?: TranslationParams) => string
   toast: any
   currentSessionId?: () => string | undefined
 }) {
@@ -30,11 +31,21 @@ function TranslationSurface(props: {
     <SelectionPopup
       settings={settings}
       labels={{
-        loading: props.t("translate.loading"),
-        failed: props.t("translate.failed"),
-        truncated: props.t("translate.truncated"),
-        copy: props.t("translate.copy"),
-        copied: props.t("translate.copied"),
+        get loading() {
+          return props.t("translate.loading")
+        },
+        get failed() {
+          return props.t("translate.failed")
+        },
+        get truncated() {
+          return props.t("translate.truncated")
+        },
+        get copy() {
+          return props.t("translate.copy")
+        },
+        get copied() {
+          return props.t("translate.copied")
+        },
       }}
       translate={(input) => props.client.run(input)}
       copy={(text) => void props.system.copy(text)}
@@ -44,7 +55,12 @@ function TranslationSurface(props: {
   )
 }
 
-function SettingsTab(props: { store: Persisted<StoredSettings>; client: ReturnType<any> }) {
+function SettingsTab(props: {
+  store: Persisted<StoredSettings>
+  client: ReturnType<any>
+  t: (key: string, params?: TranslationParams) => string
+  locale?: () => string
+}) {
   const settings = (): PluginSettings => ({ ...DEFAULT_SETTINGS, ...props.store.value })
 
   // Synchronize on mount if TUI settings exist
@@ -89,43 +105,36 @@ function SettingsTab(props: { store: Persisted<StoredSettings>; client: ReturnTy
   }
 
   const reset = () => {
-    props.store.set(DEFAULT_SETTINGS)
+    const defaultTargets = getDefaultTargetsForLocale(props.locale?.())
+    const defaults: PluginSettings = { ...DEFAULT_SETTINGS, targets: defaultTargets }
+    props.store.set(defaults)
     props.client
       .saveTuiSettings({
-        keyClipboard: DEFAULT_SETTINGS.tuiKeyClipboard,
-        keyLastTurn: DEFAULT_SETTINGS.tuiKeyLastTurn,
-        keyPanel: DEFAULT_SETTINGS.tuiKeyPanel,
-        targets: DEFAULT_SETTINGS.targets,
-        engineMode: DEFAULT_SETTINGS.engineMode,
+        keyClipboard: defaults.tuiKeyClipboard,
+        keyLastTurn: defaults.tuiKeyLastTurn,
+        keyPanel: defaults.tuiKeyPanel,
+        targets: defaults.targets,
+        engineMode: defaults.engineMode,
       })
       .catch(() => {})
   }
 
-  return <SettingsView settings={settings} update={update} reset={reset} />
+  return (
+    <SettingsView
+      settings={settings}
+      update={update}
+      reset={reset}
+      t={props.t}
+      locale={props.locale}
+    />
+  )
 }
 
 export default Plugin.define({
   stores: {
     settings: Store.global(SettingsSchema, DEFAULT_SETTINGS),
   },
-  i18n: {
-    en: {
-      "translate.loading": "Translating…",
-      "translate.failed": "Translation failed",
-      "translate.truncated": "selection trimmed",
-      "translate.copy": "click a line to copy",
-      "translate.copied": "copied",
-      "settings.title": "Translation",
-    },
-    ru: {
-      "translate.loading": "Перевод…",
-      "translate.failed": "Не удалось перевести",
-      "translate.truncated": "выделение обрезано",
-      "translate.copy": "клик по строке — копировать",
-      "translate.copied": "скопировано",
-      "settings.title": "Переводчик",
-    },
-  },
+  i18n: I18N_CATALOG,
   setup(ctx) {
     const client = ctx.main(Translate)
 
@@ -137,21 +146,26 @@ export default Plugin.define({
           client={client}
           system={ctx.system}
           options={ctx.options}
-          t={(k) => ctx.t(k)}
+          t={(k, p) => ctx.t(k, p)}
           toast={ctx.toast}
           currentSessionId={() => ctx.sessions.current()?.id}
         />
       ),
     })
 
-    ctx.add(SettingsPage, {
+    ctx.add(SettingsPage, () => ({
       id: "translate",
-      icon: "globe",
-      get title() {
-        return ctx.t("settings.title")
-      },
-      render: () => <SettingsTab store={ctx.stores.settings} client={client} />,
-    })
+      icon: "globe" as const,
+      title: ctx.t("settings.title"),
+      render: () => (
+        <SettingsTab
+          store={ctx.stores.settings}
+          client={client}
+          t={(k, p) => ctx.t(k, p)}
+          locale={() => ctx.locale.locale()}
+        />
+      ),
+    }))
   },
   main(ctx) {
     ctx.log.write("info", "translate-selection main ready", { version: ctx.app.version })

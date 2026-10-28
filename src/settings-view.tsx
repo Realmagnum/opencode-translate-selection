@@ -10,14 +10,16 @@ import {
   buildLangTagStyle,
   buildMetaStyle,
   buildPreviewShellStyle,
-  buildTextStyle,
   rowStyle,
 } from "./popup"
+import { resolveTranslation, type TranslationParams } from "./i18n"
 
 interface Props {
   settings: () => PluginSettings
   update(patch: Partial<PluginSettings>): void
   reset(): void
+  t?: (key: string, params?: TranslationParams) => string
+  locale?: () => string
 }
 
 const sectionHeader: Record<string, string> = {
@@ -84,6 +86,14 @@ const buttonStyle: Record<string, string> = {
 export function SettingsView(props: Props) {
   const c = () => ({ ...DEFAULT_SETTINGS, ...props.settings() })
 
+  const t = (key: string, params?: TranslationParams): string => {
+    if (props.t) {
+      const val = props.t(key, params)
+      if (val && val !== key) return val
+    }
+    return resolveTranslation(props.locale?.(), key, params)
+  }
+
   const applyPreset = (preset: Preset) => {
     props.update({
       bgColor: preset.bgColor,
@@ -102,17 +112,17 @@ export function SettingsView(props: Props) {
       {/* Title & Description */}
       <div style={{ "margin-bottom": "20px" }}>
         <h2 style={{ "font-size": "18px", "font-weight": "600", "margin-bottom": "4px", color: "var(--text-default, #eceff4)" }}>
-          Translation Tooltip Settings
+          {t("settings.header.title")}
         </h2>
         <p style={{ "font-size": "12.5px", color: "var(--text-subdued, #94a3b8)" }}>
-          Customize the inline translation popup appearance, target languages, positioning, and behavior.
+          {t("settings.header.desc")}
         </p>
       </div>
 
       {/* Live Interactive Preview */}
       <div style={{ "margin-bottom": "24px" }}>
         <div style={{ "font-size": "12px", "font-weight": "600", "text-transform": "uppercase", "letter-spacing": "0.05em", color: "var(--text-subdued, #94a3b8)", "margin-bottom": "8px" }}>
-          Live Preview
+          {t("settings.preview.title")}
         </div>
         <div
           style={{
@@ -128,7 +138,7 @@ export function SettingsView(props: Props) {
           <div style={buildPreviewShellStyle(c())}>
             <div style={rowStyle}>
               <div style={{ display: "flex", "flex-direction": "column", "align-items": "center", gap: "3px" }}>
-                <span style={buildLangTagStyle(c())}>RU</span>
+                <span style={buildLangTagStyle(c())}>{t("settings.preview.langTag")}</span>
                 <span
                   style={{
                     "font-size": "8px",
@@ -145,11 +155,11 @@ export function SettingsView(props: Props) {
                 </span>
               </div>
               <div style={{ flex: 1, "min-width": 0, "font-size": `${c().fontSize}px`, color: c().textColor }}>
-                <div style={{ "font-weight": "600", "margin-bottom": "3px" }}>Ключевые особенности:</div>
+                <div style={{ "font-weight": "600", "margin-bottom": "3px" }}>{t("settings.preview.sampleTitle")}</div>
                 <div style={{ display: "flex", gap: "6px", "align-items": "baseline", "padding-left": "2px" }}>
                   <span style={{ color: c().accentColor, "font-size": "11px", "user-select": "none" }}>•</span>
                   <span>
-                    Поиск по модели:{" "}
+                    {t("settings.preview.sampleBullet")}
                     <code
                       style={{
                         background: "rgba(255, 215, 94, 0.12)",
@@ -166,13 +176,13 @@ export function SettingsView(props: Props) {
                 </div>
               </div>
             </div>
-            <div style={buildMetaStyle(c())}>click a line to copy</div>
+            <div style={buildMetaStyle(c())}>{t("translate.copy")}</div>
           </div>
         </div>
       </div>
 
       {/* Quick Theme Presets */}
-      <div style={sectionHeader}>Theme Presets</div>
+      <div style={sectionHeader}>{t("settings.presets.title")}</div>
       <div style={{ display: "flex", gap: "8px", "flex-wrap": "wrap", "margin-bottom": "16px" }}>
         <For each={PRESETS}>
           {(preset) => (
@@ -196,22 +206,22 @@ export function SettingsView(props: Props) {
                   display: "inline-block",
                 }}
               />
-              {preset.name}
+              {t(`settings.preset.${preset.id}`)}
             </button>
           )}
         </For>
       </div>
 
       {/* Translation Engine */}
-      <div style={sectionHeader}>Translation Engine</div>
+      <div style={sectionHeader}>{t("settings.engine.title")}</div>
       <div style={cardStyle}>
         <div style={fieldRow}>
           <div style={labelStyle}>
-            <span>Engine Mode</span>
+            <span>{t("settings.engine.mode.label")}</span>
             <span style={subLabelStyle}>
-              {c().engineMode === "auto" && "Auto (Smart): Google MT for phrases, Session LLM for lists & code"}
-              {c().engineMode === "fast" && "Fast MT Only: Always use Google / MyMemory (fastest, zero LLM usage)"}
-              {c().engineMode === "llm" && "Session LLM Only: Always translate using active session's model"}
+              {c().engineMode === "auto" && t("settings.engine.mode.autoDesc")}
+              {c().engineMode === "fast" && t("settings.engine.mode.fastDesc")}
+              {c().engineMode === "llm" && t("settings.engine.mode.llmDesc")}
             </span>
           </div>
           <div style={{ display: "flex", gap: "6px" }}>
@@ -225,7 +235,7 @@ export function SettingsView(props: Props) {
               }}
               onClick={() => setEngine("auto")}
             >
-              Auto (Smart)
+              {t("settings.engine.mode.auto")}
             </button>
             <button
               type="button"
@@ -237,7 +247,7 @@ export function SettingsView(props: Props) {
               }}
               onClick={() => setEngine("fast")}
             >
-              Fast MT
+              {t("settings.engine.mode.fast")}
             </button>
             <button
               type="button"
@@ -249,7 +259,7 @@ export function SettingsView(props: Props) {
               }}
               onClick={() => setEngine("llm")}
             >
-              Session LLM
+              {t("settings.engine.mode.llm")}
             </button>
           </div>
         </div>
@@ -257,8 +267,8 @@ export function SettingsView(props: Props) {
         <Show when={c().engineMode !== "fast"}>
           <div style={fieldRow}>
             <div style={labelStyle}>
-              <span>LLM Fallback Timeout ({(c().llmTimeoutMs / 1000).toFixed(1)}s)</span>
-              <span style={subLabelStyle}>Maximum wait time before falling back to Google Translate</span>
+              <span>{t("settings.engine.timeout.label", { seconds: (c().llmTimeoutMs / 1000).toFixed(1) })}</span>
+              <span style={subLabelStyle}>{t("settings.engine.timeout.desc")}</span>
             </div>
             <input
               type="range"
@@ -273,12 +283,12 @@ export function SettingsView(props: Props) {
       </div>
 
       {/* Languages */}
-      <div style={sectionHeader}>Languages</div>
+      <div style={sectionHeader}>{t("settings.languages.title")}</div>
       <div style={cardStyle}>
         <div style={fieldRow}>
           <div style={labelStyle}>
-            <span>Target Languages</span>
-            <span style={subLabelStyle}>Comma-separated ISO language codes (e.g. ru, en, de, fr, es, zh)</span>
+            <span>{t("settings.languages.targets.label")}</span>
+            <span style={subLabelStyle}>{t("settings.languages.targets.desc")}</span>
           </div>
           <input
             type="text"
@@ -290,13 +300,13 @@ export function SettingsView(props: Props) {
       </div>
 
       {/* Colors & Appearance */}
-      <div style={sectionHeader}>Colors & Style</div>
+      <div style={sectionHeader}>{t("settings.appearance.title")}</div>
       <div style={cardStyle}>
         {/* Background Color */}
         <div style={fieldRow}>
           <div style={labelStyle}>
-            <span>Background Color</span>
-            <span style={subLabelStyle}>Base background tone</span>
+            <span>{t("settings.appearance.bgColor.label")}</span>
+            <span style={subLabelStyle}>{t("settings.appearance.bgColor.desc")}</span>
           </div>
           <div style={{ display: "flex", "align-items": "center", gap: "8px" }}>
             <input
@@ -317,8 +327,8 @@ export function SettingsView(props: Props) {
         {/* Background Opacity */}
         <div style={fieldRow}>
           <div style={labelStyle}>
-            <span>Background Opacity ({c().bgOpacity}%)</span>
-            <span style={subLabelStyle}>Transparency of the tooltip backdrop</span>
+            <span>{t("settings.appearance.bgOpacity.label", { opacity: c().bgOpacity })}</span>
+            <span style={subLabelStyle}>{t("settings.appearance.bgOpacity.desc")}</span>
           </div>
           <input
             type="range"
@@ -332,8 +342,8 @@ export function SettingsView(props: Props) {
         {/* Text Color */}
         <div style={fieldRow}>
           <div style={labelStyle}>
-            <span>Translation Text Color</span>
-            <span style={subLabelStyle}>Main translation text</span>
+            <span>{t("settings.appearance.textColor.label")}</span>
+            <span style={subLabelStyle}>{t("settings.appearance.textColor.desc")}</span>
           </div>
           <div style={{ display: "flex", "align-items": "center", gap: "8px" }}>
             <input
@@ -354,8 +364,8 @@ export function SettingsView(props: Props) {
         {/* Accent / Border Color */}
         <div style={fieldRow}>
           <div style={labelStyle}>
-            <span>Accent & Badge Color</span>
-            <span style={subLabelStyle}>Color for language tag badges and border highlights</span>
+            <span>{t("settings.appearance.accentColor.label")}</span>
+            <span style={subLabelStyle}>{t("settings.appearance.accentColor.desc")}</span>
           </div>
           <div style={{ display: "flex", "align-items": "center", gap: "8px" }}>
             <input
@@ -375,13 +385,13 @@ export function SettingsView(props: Props) {
       </div>
 
       {/* Geometry & Position */}
-      <div style={sectionHeader}>Position & Dimensions</div>
+      <div style={sectionHeader}>{t("settings.dimensions.title")}</div>
       <div style={cardStyle}>
         {/* Clearance */}
         <div style={fieldRow}>
           <div style={labelStyle}>
-            <span>Quote Clearance ({c().clearance}px)</span>
-            <span style={subLabelStyle}>Height offset above the native Quote toolbar</span>
+            <span>{t("settings.dimensions.clearance.label", { clearance: c().clearance })}</span>
+            <span style={subLabelStyle}>{t("settings.dimensions.clearance.desc")}</span>
           </div>
           <input
             type="range"
@@ -395,8 +405,8 @@ export function SettingsView(props: Props) {
         {/* Border Radius */}
         <div style={fieldRow}>
           <div style={labelStyle}>
-            <span>Corner Radius ({c().borderRadius}px)</span>
-            <span style={subLabelStyle}>Roundness of the popup corners</span>
+            <span>{t("settings.dimensions.radius.label", { radius: c().borderRadius })}</span>
+            <span style={subLabelStyle}>{t("settings.dimensions.radius.desc")}</span>
           </div>
           <input
             type="range"
@@ -410,8 +420,8 @@ export function SettingsView(props: Props) {
         {/* Font Size */}
         <div style={fieldRow}>
           <div style={labelStyle}>
-            <span>Font Size ({c().fontSize}px)</span>
-            <span style={subLabelStyle}>Size of the translation text</span>
+            <span>{t("settings.dimensions.fontSize.label", { size: c().fontSize })}</span>
+            <span style={subLabelStyle}>{t("settings.dimensions.fontSize.desc")}</span>
           </div>
           <input
             type="range"
@@ -426,8 +436,8 @@ export function SettingsView(props: Props) {
         {/* Max Width */}
         <div style={fieldRow}>
           <div style={labelStyle}>
-            <span>Maximum Width ({c().maxWidth}px)</span>
-            <span style={subLabelStyle}>Maximum width before text wraps</span>
+            <span>{t("settings.dimensions.maxWidth.label", { width: c().maxWidth })}</span>
+            <span style={subLabelStyle}>{t("settings.dimensions.maxWidth.desc")}</span>
           </div>
           <input
             type="range"
@@ -442,8 +452,8 @@ export function SettingsView(props: Props) {
         {/* Max Height */}
         <div style={fieldRow}>
           <div style={labelStyle}>
-            <span>Maximum Height ({c().maxHeight}px)</span>
-            <span style={subLabelStyle}>Maximum height before scrollbar appears for multi-line lists</span>
+            <span>{t("settings.dimensions.maxHeight.label", { height: c().maxHeight })}</span>
+            <span style={subLabelStyle}>{t("settings.dimensions.maxHeight.desc")}</span>
           </div>
           <input
             type="range"
@@ -457,13 +467,13 @@ export function SettingsView(props: Props) {
       </div>
 
       {/* Behavior */}
-      <div style={sectionHeader}>Behavior</div>
+      <div style={sectionHeader}>{t("settings.behavior.title")}</div>
       <div style={cardStyle}>
         {/* Debounce */}
         <div style={fieldRow}>
           <div style={labelStyle}>
-            <span>Selection Delay ({c().debounceMs}ms)</span>
-            <span style={subLabelStyle}>Delay after releasing mouse before requesting translation</span>
+            <span>{t("settings.behavior.debounce.label", { delay: c().debounceMs })}</span>
+            <span style={subLabelStyle}>{t("settings.behavior.debounce.desc")}</span>
           </div>
           <input
             type="range"
@@ -478,8 +488,8 @@ export function SettingsView(props: Props) {
         {/* Max Characters */}
         <div style={fieldRow}>
           <div style={labelStyle}>
-            <span>Maximum Characters ({c().maxChars})</span>
-            <span style={subLabelStyle}>Selections longer than this will be trimmed</span>
+            <span>{t("settings.behavior.maxChars.label", { chars: c().maxChars })}</span>
+            <span style={subLabelStyle}>{t("settings.behavior.maxChars.desc")}</span>
           </div>
           <input
             type="range"
@@ -493,17 +503,17 @@ export function SettingsView(props: Props) {
       </div>
 
       {/* Terminal (TUI) Keybindings */}
-      <div style={sectionHeader}>Terminal (TUI) Keybindings</div>
+      <div style={sectionHeader}>{t("settings.tui.title")}</div>
       <div style={cardStyle}>
         <div style={{ "font-size": "12px", color: "var(--text-subdued, #94a3b8)", "line-height": "1.4" }}>
-          Customize hotkeys for OpenCode running in the terminal. If your terminal emulator (e.g. <strong>Ghostty</strong>, iTerm2, Alacritty) intercepts <code>Alt+T</code> or other system keys, you can specify any alternative key combinations here (e.g. <code>alt+y</code>, <code>ctrl+t</code>, <code>alt+c</code>).
+          {t("settings.tui.desc")}
         </div>
 
         {/* Key: Clipboard */}
         <div style={fieldRow}>
           <div style={labelStyle}>
-            <span>Translate Clipboard Hotkey</span>
-            <span style={subLabelStyle}>Default: <code>alt+t</code> (or custom, e.g. <code>alt+y</code>, <code>ctrl+t</code>)</span>
+            <span>{t("settings.tui.keyClipboard.label")}</span>
+            <span style={subLabelStyle}>{t("settings.tui.keyClipboard.desc")}</span>
           </div>
           <input
             type="text"
@@ -516,8 +526,8 @@ export function SettingsView(props: Props) {
         {/* Key: Last Turn */}
         <div style={fieldRow}>
           <div style={labelStyle}>
-            <span>Translate Last Assistant Turn Hotkey</span>
-            <span style={subLabelStyle}>Default: <code>alt+shift+t</code> (e.g. <code>alt+shift+y</code>, <code>ctrl+shift+t</code>)</span>
+            <span>{t("settings.tui.keyLastTurn.label")}</span>
+            <span style={subLabelStyle}>{t("settings.tui.keyLastTurn.desc")}</span>
           </div>
           <input
             type="text"
@@ -530,8 +540,8 @@ export function SettingsView(props: Props) {
         {/* Key: Side Panel */}
         <div style={fieldRow}>
           <div style={labelStyle}>
-            <span>Toggle Side Panel Hotkey</span>
-            <span style={subLabelStyle}>Default: <code>alt+p</code> (e.g. <code>alt+o</code>, <code>ctrl+p</code>)</span>
+            <span>{t("settings.tui.keyPanel.label")}</span>
+            <span style={subLabelStyle}>{t("settings.tui.keyPanel.desc")}</span>
           </div>
           <input
             type="text"
@@ -549,7 +559,7 @@ export function SettingsView(props: Props) {
           style={{ ...buttonStyle, color: "#f87171" }}
           onClick={props.reset}
         >
-          Reset to Defaults
+          {t("settings.reset")}
         </button>
       </div>
     </div>
