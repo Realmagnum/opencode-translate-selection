@@ -1,15 +1,16 @@
-# Спецификация: Сохранение структуры и форматирования при переводе (Structured Translation)
+# Спецификация: Гибридный структурированный перевод с автовыбором LLM и MT (Smart Hybrid Translation)
 
 > **Проект**: `opencode-translate-selection`  
-> **Статус**: План-спецификация к реализации (Draft / Approved for Development)  
+> **Статус**: План-спецификация к реализации (Approved Architecture)  
+> **Версия документа**: 2.0 (Hybrid LLM + Multi-tier MT)  
 > **Дата**: 2026-10-28  
 
 ---
 
 ## 1. Проблема и контекст
 
-### 1.1. Текущее поведение (как на скриншоте)
-При выделении форматированного текста в таймлайне (например, блока с заголовком, буллетами, inline-кодом и жирным шрифтом):
+### 1.1. Проблема текущего MT-пайплайна
+При выделении форматированного текста в таймлайне OpenCode Desktop (заголовки, буллеты, inline-код, параметры функций):
 ```markdown
 Key Features:
 • Model-specific search: Use tools.opencode.models({ query: 'search' }) to discover search-capable models
@@ -22,282 +23,274 @@ Key Features:
 Пользователь видит в тултипе нечитаемую «кашу» из одного сплошного абзаца:
 > `RU Ключевые особенности: Поиск по конкретной модели: используйте Tools.opencode.models({ query: 'search' }) для обнаружения моделей с возможностью поиска. Веб-интеграция: прямой веб-поиск и получение контента. Специализированный поиск: академические, биомедицинские варианты поиска, ориентированные на разработчиков. Автоматизация браузера: для поисковых веб-интерфейсов. Исследования из нескольких источников: сбор структурированных данных Firecrawl для комплексного поиска.`
 
-При этом:
-1. **Потеряны списки и переносы строк**: все пункты слиплись в одну непрерывную строку.
-2. **Испорчен код**: `tools.opencode.models` капитализировался в `Tools.opencode.models`, аргументы `{ query: 'search' }` могут быть переведены или искажены.
-3. **Потеряна визуальная иерархия**: нет выделения терминов (bold), отступов и буллетов.
-4. **Неудобное копирование**: при клике копируется плоский текст без Markdown-разметки.
+**Причины:**
+1. Обычные MT-движки (Google Translate `gtx`, MyMemory) обучены на обычном связном тексте: они склеивают списки в один абзац и пытаются переводить код (`tools.opencode.models` капитализируется в `Tools.opencode...`, параметры искажаются).
+2. Текущий код `src/popup.tsx:189` дополнительно схлопывает все пробелы и `\n` через `.replace(/\s+/g, " ")` перед отправкой.
+
+### 1.2. Решение: Гибридный Smart Translation
+* **Короткие фразы и одиночные слова (90% выделений)** не требуют LLM — их мгновенно переводит бесплатный Google Translate за 80–120 мс без расхода токенов и нагрузки на локальный инференс.
+* **Сложные структурированные блоки** (списки, код, буллеты, сниппеты) автоматически передаются в **LLM текущей сессии** (локальная модель `llama-server/llama-swap` или облачная) через встроенный API OpenCode `session.generate()`. Запрос выполняется **ВНЕ сессии** — история сообщений не засоряется, контекстное окно не тратится.
+* **Отказоустойчивость (Fail-safe Fallback)**: если локальная LLM занята, отвечает дольше 3.5 секунд или вернула ошибку, плагин мгновенно и прозрачно откатывается на экранированный MT-пайплайн (Google `gtx` → `dict-chrome-ex` → `MyMemory`).
 
 ---
 
-## 2. Анализ причин (Root Cause Analysis)
+## 2. Архитектура решения
 
-В текущей кодовой базе потеря структуры происходит на 4 последовательных этапах:
-
-1. **Захват выделения (`src/popup.tsx:189`)**:
-   ```ts
-   const raw = selection.toString().replace(/\s+/g, " ").trim()
-   ```
-   Метод `replace(/\s+/g, " ")` целенаправленно схлопывает все переводы строк (`\n`), табуляции и отступы в одиночные пробелы ещё до отправки.
-
-2. **Отсутствие защиты кода (Token Shielding)**:
-   Текст отправляется в Google Translate «как есть». Переводчик пытается переводить программные идентификаторы, ключи параметров и имена функций.
-
-3. **Склейка чанков на бэкенде (`src/translate.ts:101-104`)**:
-   Возвращаемые Google Translate массивы строк просто соединяются через `join("")` и зачищаются через `.trim()`.
-
-4. **Плоский рендеринг (`src/popup.tsx:307-309`)**:
-   Тултип отрисовывает результат в единственном элементе `<span style={textStyle}>` без поддержки списков, параграфов и блочной вёрстки.
+```
+                             Пользователь выделил текст
+                                        │
+                                        ▼
+                          isComplexFormattedText(raw)?
+                         ┌──────────────┴──────────────┐
+                         ▼ [НЕТ]                       ▼ [ДА]
+                  (Слова / фразы)              (Списки / код / буллеты)
+                         │                             │
+                         │                   Режим: Auto или LLM?
+                         │                             │
+                         │                     ┌───────┴───────┐
+                         │                     ▼ [Да]          ▼ [Режим: Fast MT]
+                         │             LLM Текущей Сессии      │
+                         │             (session.generate)      │
+                         │             Таймаут: 3.5 сек        │
+                         │                     │               │
+                         │           ┌─────────┴─────────┐     │
+                         │           ▼ [Успех < 3.5s]    ▼     │
+                         │       Форматированный         │     │
+                         │       Markdown-перевод        │     │
+                         │           │             [Таймаут / Ошибка]
+                         │           │                   │     │
+                         ▼           │                   ▼     ▼
+                ┌────────────────────┼────────────────────────────┐
+                │                    │   Multi-Tier MT Fallback   │
+                │                    │   • DOM Token Shielding ⟦N⟧│
+                │                    │   • Tier 1: Google gtx     │
+                │                    │   • Tier 2: dict-chrome-ex │
+                │                    │   • Tier 3: MyMemory       │
+                └────────────────────┼────────────────────────────┘
+                                     │                 │
+                                     ▼                 ▼
+                         ┌────────────────────────────────────────┐
+                         │ SolidJS Structured Popup Renderer      │
+                         │ • Буллеты •, нумерация 1., отступы     │
+                         │ • Защищенный инлайн-код в <code>       │
+                         │ • Markdown-копирование в буфер         │
+                         └────────────────────────────────────────┘
+```
 
 ---
 
-## 3. Целевая архитектура решения
+## 3. Ключевые компоненты
+
+### 3.1. Детектор структуры контента (`src/detector.ts`)
+Быстрая синхронная проверка выделенного текста перед выбором бэкенда:
+
+```ts
+export function isComplexFormattedText(raw: string): boolean {
+  const trimmed = raw.trim()
+  if (trimmed.length < 40 && !trimmed.includes("\n")) return false
+
+  const lines = trimmed.split("\n").map((l) => l.trim()).filter(Boolean)
+
+  // 1. Наличие буллетов, номеров или дефисов в многострочном тексте
+  if (lines.length >= 2) {
+    const hasLists = lines.some((l) => /^([•\-*+]|\d+[.)]|\d+-\d+)\s/.test(l))
+    const hasCodeFences = /`[^`]+`|```/.test(trimmed)
+    const hasFunctionCalls = /\b[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*\(/.test(trimmed)
+    if (hasLists || hasCodeFences || hasFunctionCalls) return true
+  }
+
+  // 2. Инлайн-код, идентификаторы параметров или JSON-фрагменты даже в коротком тексте
+  if (/`{1,3}[^`]+`{1,3}/.test(trimmed)) return true
+  if (/\{[\s\S]*:[ \t]*[\s\S]*\}/.test(trimmed)) return true // { query: 'search' }
+
+  return false
+}
+```
+
+### 3.2. Генерация через модель сессии вне истории (`src/llm-engine.ts`)
+Использует штатный вызов SDK OpenCode:
+`ctx.client.session.generate({ sessionID, prompt })` (HTTP `POST /api/session/{sessionID}/generate`).
+
+**Преимущества метода:**
+1. Не создает сообщений в базе данных `opencode.db`.
+2. Не модифицирует контекст текущей беседы.
+3. Использует ту модель, которую пользователь уже выбрал для текущего проекта/сессии (локальная `Mirai-S-27B`, `bonsai` на `llama-swap` или облачная).
+4. Нативно понимает синтаксис языков программирования, Markdown-разметку и имена функций без искажений.
+
+**Строгий контракт системного промпта:**
+```text
+Translate the following text to ${targetLanguageName}.
+Strict rules:
+1. Preserve all formatting, bullet markers, numbered steps, indentations, and line breaks exactly as in the original.
+2. DO NOT translate, change, or rename code, function calls, parameters, variable names, or technical identifiers (e.g. `tools.opencode.models({ query: 'search' })`).
+3. Return ONLY the translation. Never add introductory text, commentary, or extra wrapping markdown fences.
+
+Text to translate:
+${text}
+```
+
+**Таймаут и отмена (AbortController):**
+Для запроса выделяется контролируемый слот времени (по умолчанию **3500 мс**). Если локальный сервер занят генерацией в основном окне или модель отвечает медленно, `AbortController` прерывает вызов, и плагин мгновенно переключается на MT-фоллбэк.
+
+### 3.3. Резервный MT-пайплайн с экранированием кода (`src/shield.ts` + `src/translate.ts`)
+Если LLM недоступна или отключена:
+1. **Token Shielding**: Перед отправкой в Google Translate все участки инлайн-кода `` `code` ``, camelCase-идентификаторы и параметры заменяются на математические белые скобки `⟦0⟧`, `⟦1⟧` (`U+27E6`/`U+27E7`).
+2. Google Translate переводит связный текст, оставляя маркеры `⟦0⟧` нетронутыми.
+3. В ответе токены `⟦0⟧` разворачиваются обратно в исходный нетронутый код.
+4. При сбое gtx срабатывают вторичные слои: `dict-chrome-ex` и `MyMemory API`.
+
+### 3.4. Структурированный рендерер тултипа (`src/block-view.tsx` & `src/popup.tsx`)
+Вместо одного плоского `<span>`:
+* Буллеты рендерятся списком с аккуратными маркерами `•` и отступами.
+* Нумерованные пункты сохраняют свой порядок (`1.`, `2.`...).
+* Инлайн-код подсвечивается моноширинным шрифтом на подложке:
+  `<code style={{ background: "rgba(255, 215, 94, 0.12)", "border-radius": "4px", padding: "1px 4px" }}>`.
+* Включается вертикальный скролл (`max-height: 420px`) для длинных списков.
+* Копирование по клику копирует форматированный Markdown.
+
+---
+
+## 4. Обновленная модель данных и контракты
+
+### 4.1. Настройки плагина (`src/settings.ts`)
+
+```ts
+export type EngineMode = "auto" | "fast" | "llm"
+
+export interface PluginSettings {
+  // Движок и роутинг
+  engineMode: EngineMode       // "auto" (по умолчанию), "fast", "llm"
+  llmTimeoutMs: number         // Таймаут ожидания LLM до фоллбэка на MT (по умолчанию: 3500)
+  
+  // Языки
+  targets: string              // "ru, en"
+  dropSourceLang: boolean      // true
+  
+  // Геометрия и стиль
+  clearance: number            // 52
+  bgColor: string              // "#2b220a"
+  bgOpacity: number            // 97
+  textColor: string            // "#ffd75e"
+  accentColor: string          // "#c9a83f"
+  borderRadius: number         // 10
+  fontSize: number             // 12.5
+  maxWidth: number             // 560
+  maxHeight: number            // 420 (новое: ограничение высоты для списков)
+  
+  // Поведение
+  debounceMs: number           // 140
+  maxChars: number             // 1500 (увеличено для поддержки списков)
+}
+
+export const DEFAULT_SETTINGS: PluginSettings = {
+  engineMode: "auto",
+  llmTimeoutMs: 3500,
+  targets: "ru, en",
+  dropSourceLang: true,
+  clearance: 52,
+  bgColor: "#2b220a",
+  bgOpacity: 97,
+  textColor: "#ffd75e",
+  accentColor: "#c9a83f",
+  borderRadius: 10,
+  fontSize: 12.5,
+  maxWidth: 560,
+  maxHeight: 420,
+  debounceMs: 140,
+  maxChars: 1500,
+}
+```
+
+### 4.2. IPC-контракт между Window и Main Process (`src/contract.ts`)
+
+```ts
+import { Schema } from "effect"
+
+export interface TranslateRequest {
+  text: string
+  targets: readonly string[]
+  sessionID?: string
+  engineMode?: "auto" | "fast" | "llm"
+  llmTimeoutMs?: number
+}
+
+export interface TranslateItem {
+  lang: string
+  text: string
+  engineUsed: "llm" | "gtx" | "dict-chrome-ex" | "mymemory"
+  error?: string
+}
+
+export interface TranslateResponse {
+  detected: string
+  results: TranslateItem[]
+}
+```
+
+---
+
+## 5. Графический интерфейс настроек (`/settings?tab=translate`)
+
+В существующую страницу настроек добавляется новый раздел:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│ 1. DOM Range Capture (Window Context)                                  │
-│    selection.getRangeAt(0).cloneContents()                             │
-│    └─► Обход DOM-фрагмента: <ul>, <ol>, <li>, <h3>, <pre>, <code>, <p> │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│ 2. AST Extraction & Token Shielding                                    │
-│    • Формирование списка блоков: Headings, Bullets, Ordered, Code      │
-│    • Замена code / identifiers на токены: tools.foo() -> ⟦0⟧           │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│ 3. Batch / Per-Block Translation (IPC -> Main Process)                 │
-│    • Перевод только человеческого текста блоков (без маркеров -/1.)     │
-│    • Кэширование по блокам (block-level LRU cache)                     │
-│    • Multi-tier fallback (gtx -> dict-chrome-ex -> mymemory)           │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│ 4. Unshielding & Reassembly                                            │
-│    • Восстановление токенов ⟦0⟧ -> исходный код                        │
-│    • Сборка структурированного AST с переводом                         │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│ 5. SolidJS Structured Popup Renderer & Markdown Copy                   │
-│    • Визуализация: отступы, маркеры буллетов, стилизованный код        │
-│    • Клик для копирования: Markdown с сохранением списка и fence       │
+│ Translation Engine                                                     │
+├────────────────────────────────────────────────────────────────────────┤
+│ Engine Mode                                       [ Auto (Smart) ▼ ]   │
+│ • Auto: Fast MT for phrases, Session LLM for structured lists & code.   │
+│ • Fast MT: Always use Google/MyMemory (fastest, no LLM usage).         │
+│ • Session LLM: Always translate via current active session model.      │
+│                                                                        │
+│ LLM Fallback Timeout (3.5s)                   [───────●──────────]     │
+│ Fallback to Google MT if the model does not respond within this window.│
+│                                                                        │
+│ Max Popup Height (420px)                      [───────────●──────]     │
+│ Prevents large multi-line lists from overflowing the display.          │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 4. Модель данных (TypeScript Contracts)
-
-### 4.1. Типы блоков и сегментов
-
-```ts
-/** Тип блока контента */
-export type BlockKind =
-  | "paragraph"
-  | "heading"
-  | "bullet"
-  | "ordered"
-  | "quote"
-  | "code"
-
-/** Инлайн-сегмент внутри текстового блока */
-export type InlineSegment =
-  | { kind: "text"; text: string }
-  | { kind: "strong"; text: string }
-  | { kind: "code"; text: string } // Защищен от перевода
-  | { kind: "link"; href?: string; text: string }
-
-/** Структурный блок */
-export interface StructuredBlock {
-  id: string
-  kind: BlockKind
-  /** Уровень заголовка (1-6) или вложенности списка (0+) */
-  level?: number
-  /** Исходный индекс для нумерованного списка ("1.", "2." и т.д.) */
-  orderedIndex?: string
-  /** Язык программирования для блоков кода */
-  codeLang?: string
-  /** Инлайн-содержимое для текстовых блоков */
-  inlines: InlineSegment[]
-  /** Текст для перевода с плейсхолдерами ⟦0⟧ для защищенных сегментов */
-  translatableText: string
-  /** Защищенные токены, вырезанные перед переводом */
-  shieldedTokens: string[]
-  /** Переведенный текст (заполняется после ответа) */
-  translatedText?: string
-}
-
-/** Документ выделения */
-export interface StructuredSelection {
-  isStructured: boolean
-  blocks: StructuredBlock[]
-  rawText: string
-}
-```
-
-### 4.2. Обновленный IPC-контракт (`src/contract.ts`)
-
-```ts
-export interface TranslateBlockPayload {
-  id: string
-  text: string
-}
-
-export interface TranslateStructuredInput {
-  blocks: TranslateBlockPayload[]
-  targets: readonly string[]
-}
-
-export interface TranslateBlockResult {
-  id: string
-  lang: string
-  text: string
-  error?: string
-}
-
-export interface TranslateStructuredOutput {
-  detected: string
-  results: Record<string, TranslateBlockResult[]> // key: blockId
-}
-```
-
----
-
-## 5. Детализация компонентов реализации
-
-### 5.1. DOM-сегментатор (`src/dom-segmenter.ts`)
-Вместо вызова `selection.toString()` плагин анализирует `range.cloneContents()`:
-- Элементы `LI` внутри `UL` → блок `bullet` (глубина рассчитывается по вложенности `UL/OL`).
-- Элементы `LI` внутри `OL` → блок `ordered` с сохранением номера (`1.`, `2.` или парсинг атрибута `value`).
-- Элементы `H1`–`H6` → блок `heading` с полем `level`.
-- Элементы `PRE`, `PRE > CODE` → блок `code` (не отправляется в переводчик, отображается исходным текстом).
-- Элементы `BLOCKQUOTE` → блок `quote`.
-- Инлайн-узлы `STRONG`, `B` → сегмент `strong`.
-- Инлайн-узлы `CODE` (внутри параграфа или списка) → сегмент `code` (защищается токеном).
-- Обычные текстовые ноды → сегмент `text`.
-
-**Фоллбэк для плоского текста**:
-Если в выделении нет богатого DOM (например, выделен текст в теге `<pre>` или обычном `<div>`), работает регулярный построчный парсер:
-- `^(\s*)([-*+]|\d+[.)])\s+(.*)$` → списки
-- `^(#{1,6})\s+(.*)$` → заголовки
-- `^>\s+(.*)$` → цитаты
-- `` `([^`]+)` `` → инлайн-код
-
-### 5.2. Экранирование кода и терминов (Token Shielding, `src/shield.ts`)
-Чтобы переводчик не ломал `tools.opencode.models({ query: 'search' })`:
-1. Все сегменты с `kind: "code"`, а также URL и специфичные конструкции (например, camelCase-пути и `@mentions`) заменяются на маркеры вида `⟦0⟧`, `⟦1⟧` (символы Mathematical White Square Brackets `U+27E6`/`U+27E7`, которые Google Translate и другие MT-системы обычно оставляют нетронутыми).
-2. После получения перевода токены заменяются обратно на исходные значения.
-3. Проводится проверка: если в переводе потерялся токен (например, MT его удалил или исказил), срабатывает мягкий фоллбэк без потери данных.
-
-### 5.3. Перевод и батчинг (`src/translate.ts`)
-- **Батчинг**: Тексты блоков объединяются через специальный разделитель `\n\n` для минимизации HTTP-запросов (1 запрос на язык вместо N запросов).
-- **Сверка**: Ответ разбивается по разделителю; если число блоков в ответе совпало с запросом — перевод распределяется по блокам.
-- **Откат (Graceful Fallback)**: Если переводчик склеил блоки или исказил разделители, система прозрачно откатывается на параллельный перевод через `Promise.allSettled` по отдельным блокам.
-- **Кэширование**: LRU-кэш индексируется не по всему гигантскому выделению, а по хэшу каждого блока (`targetLang + "\0" + blockHash`). Повторные выделения списков со схожими пунктами отдаются из кэша мгновенно.
-
-### 5.4. Блочный рендеринг в тултипе (`src/popup.tsx`)
-Вместо одного `<span>` создается компонент `<StructuredView>`:
-
-```tsx
-<div class="translate-blocks-container" style={{ "max-height": "420px", "overflow-y": "auto" }}>
-  <For each={blocks()}>
-    {(block) => (
-      <Switch>
-        <Match when={block.kind === "heading"}>
-          <div style={{ "font-weight": "700", "font-size": "13.5px", "margin": "6px 0 3px", "color": "#ffd75e" }}>
-            {renderInlines(block)}
-          </div>
-        </Match>
-
-        <Match when={block.kind === "bullet"}>
-          <div style={{ "display": "flex", "gap": "6px", "padding-left": `${(block.level || 0) * 12}px`, "margin": "2px 0" }}>
-            <span style={{ "color": "#c9a83f", "user-select": "none" }}>•</span>
-            <div style={{ "flex": "1" }}>{renderInlines(block)}</div>
-          </div>
-        </Match>
-
-        <Match when={block.kind === "ordered"}>
-          <div style={{ "display": "flex", "gap": "6px", "padding-left": `${(block.level || 0) * 12}px`, "margin": "2px 0" }}>
-            <span style={{ "color": "#c9a83f", "min-width": "16px", "user-select": "none" }}>{block.orderedIndex || "1."}</span>
-            <div style={{ "flex": "1" }}>{renderInlines(block)}</div>
-          </div>
-        </Match>
-
-        <Match when={block.kind === "code"}>
-          <pre style={{ "background": "rgba(0,0,0,0.3)", "padding": "4px 8px", "border-radius": "4px", "font-family": "ui-monospace, monospace", "font-size": "11.5px" }}>
-            <code>{block.rawText}</code>
-          </pre>
-        </Match>
-
-        <Match when={block.kind === "paragraph"}>
-          <p style={{ "margin": "3px 0" }}>{renderInlines(block)}</p>
-        </Match>
-      </Switch>
-    )}
-  </For>
-</div>
-```
-
-Инлайн-код внутри списков рендерится как:
-```tsx
-<code style={{
-  "background": "rgba(255, 215, 94, 0.12)",
-  "padding": "1px 4px",
-  "border-radius": "4px",
-  "font-family": "ui-monospace, SFMono-Regular, Menlo, monospace",
-  "font-size": "0.92em"
-}}>
-  {segment.text}
-</code>
-```
-
-### 5.5. Копирование в буфер обмена
-При клике на перевод формируется валидный **Markdown**:
-- Сохраняются маркеры `- ` и `1. `
-- Сохраняются `**жирный**` и `` `код` ``
-- Блоки кода оборачиваются в ` ``` `
-
----
-
-## 6. Настройки в GUI (`/settings?tab=translate`)
-
-На странице настроек плагина добавляются переключатели:
-1. **Preserve formatting & lists** (по умолчанию: `true`) — распознавать списки, заголовки и абзацы.
-2. **Protect code & identifiers** (по умолчанию: `true`) — защищать инлайн-код от искажения переводчиком.
-3. **Max popup height** (слайдер 200px – 600px, по умолчанию `420px`) — ограничение высоты для многострочных списков с аккуратным скроллбаром.
-
----
-
-## 7. Этапы реализации (Implementation Plan)
+## 6. Пошаговый план реализации (Action Plan)
 
 | Этап | Задача | Файлы | Результат |
 |---|---|---|---|
-| **Этап 1** | Модели данных и pure-парсеры | `src/types.ts`, `src/dom-segmenter.ts`, `src/text-segmenter.ts` | Извлечение блоков из `Range` и текстового буфера |
-| **Этап 2** | Защита кода (Token Shielding) | `src/shield.ts`, `test/shield.test.ts` | Изоляция кодовых вставок токенами `⟦N⟧` и обратная подстановка |
-| **Этап 3** | Бэкенд структурированного перевода | `src/contract.ts`, `src/translate.ts` | Пакетный перевод блоков, валидация демаркеров, кэш |
-| **Этап 4** | SolidJS UI рендерер блоков | `src/popup.tsx`, `src/block-view.tsx` | Красивые буллеты, нумерация, отступы, monospace-код |
-| **Этап 5** | Настройки и сборка Markdown | `src/settings.ts`, `src/settings-view.tsx` | Тогглы в GUI Settings, экспорт в буфер с Markdown |
-| **Этап 6** | E2E верификация и тестирование | `test/*`, ручная проверка в OpenCode Desktop | Проверка 8 тест-кейсов из матрицы |
+| **Этап 1** | Детектор структуры контента | `src/detector.ts`, тесты | Быстрое разделение простых фраз и списков/кода |
+| **Этап 2** | LLM-адаптер вне сессии | `src/llm-engine.ts` | Вызов `ctx.client.session.generate()` с промптом и таймаутом |
+| **Этап 3** | Token Shielding для MT-фоллбэка | `src/shield.ts` | Изоляция инлайн-кода токенами `⟦N⟧` для Google Translate |
+| **Этап 4** | Гибридный роутер переводов | `src/translate.ts`, `src/contract.ts` | Связка: Проверка → LLM → Fallback MT → Кэш |
+| **Этап 5** | Блочный SolidJS UI рендерер | `src/popup.tsx`, `src/block-view.tsx` | Буллеты, monospace-код, отступы и Markdown-копирование |
+| **Этап 6** | Обновление настроек в GUI | `src/settings.ts`, `src/settings-view.tsx` | Переключатель Engine Mode, слайдер таймаута, maxHeight |
+| **Этап 7** | Тестирование и E2E верификация | `test/*`, OpenCode Desktop | Прогон тестовой матрицы из 8 кейсов |
 
 ---
 
-## 8. Матрица верификации (Test Cases)
+## 7. Матрица верификации (Test Matrix)
 
-1. **Кейс 1 (Скриншот пользователя)**: Заголовок `Key Features:` + 5 буллетов, внутри которых жирный заголовок и вызов `tools.opencode.models({ query: 'search' })`.  
-   *Ожидание*: 1 заголовок, 5 буллетов с отступами, жирный текст переведен, код оставлен символьно точным.
-2. **Кейс 2 (Вложенные списки)**: Список с 2 уровнями вложенности (`ul > li > ul > li`).  
-   *Ожидание*: Корректный двойной отступ `24px` у дочерних пунктов.
-3. **Кейс 3 (Нумерованный список)**: Список `1.`, `2.`, `3.`, выделенный начиная со 2-го пункта.  
-   *Ожидание*: Сохранение нумерации `2.`, `3.`, а не сброс в `1.`.
-4. **Кейс 4 (Инлайн-код и camelCase)**: Текст с `myVariableName`, `https://example.com`, `package.json`.  
-   *Ожидание*: Технические сущности не переведены транслитом или искаженными словами.
-5. **Кейс 5 (Чек-листы)**: Пункты вида `- [ ] todo` и `- [x] done`.  
-   *Ожидание*: Сохранение маркеров чекбокса.
-6. **Кейс 6 (Блок кода)**: Выделение захватывает кусок кода `if (x) { ... }`.  
-   *Ожидание*: Отображение в `<pre><code>` без попытки перевода синтаксиса.
-7. **Кейс 7 (Длинный список)**: Выделение из 15 пунктов.  
-   *Ожидание*: Попап не выходит за границы экрана, включается внутренний скроллбар при достижении `max-height`.
-8. **Кейс 8 (Копирование)**: Клик по тултипу.  
-   *Ожидание*: В буфер попадает форматированный Markdown со всеми переносами строк и списками.
+1. **Кейс 1: Короткое слово / фраза (Fast Path)**
+   * Выделение: `"Model-specific search"`
+   * Маршрут: `isComplexFormattedText() === false` → Google Translate.
+   * Ожидание: Ответ за <150 мс, статус `engineUsed: "gtx"`, LLM не вызывается.
+2. **Кейс 2: Списочная структура с кодом (LLM Path — кейс пользователя)**
+   * Выделение: Блок со скриншота (заголовок + 5 буллетов с `tools.opencode.models({ query: 'search' })`).
+   * Маршрут: `isComplexFormattedText() === true` → `session.generate()`.
+   * Ожидание: Буллеты сохранены построчно, `tools.opencode.models` остался без искажений регистра, `query: 'search'` не переведен.
+3. **Кейс 3: Отсутствие загрязнения сессии (No Context Pollution)**
+   * Действие: Выполнение 5 переводов через LLM.
+   * Ожидание: В сессии не появилось ни одного сообщения (`message.list` пуст), контекстное окно не изменилось.
+4. **Кейс 4: Автоматический фоллбэк при таймауте LLM**
+   * Условие: Симуляция задержки LLM > 3500 мс (или локальный инференс перегружен).
+   * Ожидание: Срабатывание `AbortController`, мгновенный бесшовный перевод через экранированный Google Translate (`engineUsed: "gtx"`), тултип не зависает.
+5. **Кейс 5: Работа при отсутствии активной сессии**
+   * Условие: Выделение текста в боковой панели или системном меню без открытой сессии (`sessionID === undefined`).
+   * Ожидание: Автоматическое переключение на Google Translate.
+6. **Кейс 6: Копирование Markdown**
+   * Действие: Клик по тултипу со структурированным переводом.
+   * Ожидание: В буфер обмена копируется валидный многострочный Markdown с `- ` и бэктиками кода.
+7. **Кейс 7: Скроллинг длинных списков**
+   * Выделение: Список из 15 пунктов.
+   * Ожидание: Тултип не выходит за пределы экрана, активируется внутренний скроллбар при достижении `maxHeight: 420px`.
+8. **Кейс 8: Офлайн-устойчивость**
+   * Условие: Сеть отключена, но работает локальный `llama-server`.
+   * Ожидание: Списки и форматированный текст успешно переводятся локальной моделью без обращения к интернету.
