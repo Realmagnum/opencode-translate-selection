@@ -8,7 +8,7 @@ import {
 import {
   buildLangTagStyle,
   buildMetaStyle,
-  buildShellStyle,
+  buildPreviewShellStyle,
   buildTextStyle,
   rowStyle,
 } from "./popup"
@@ -120,7 +120,7 @@ export function SettingsView(props: Props) {
             "align-items": "center",
           }}
         >
-          <div style={{ ...buildShellStyle({ left: 0, top: 0 }, c()), position: "relative" }}>
+          <div style={buildPreviewShellStyle(c())}>
             <div style={rowStyle}>
               <span style={buildLangTagStyle(c())}>RU</span>
               <span style={buildTextStyle(c())}>Исследования из нескольких источников: сбор структурированных данных</span>

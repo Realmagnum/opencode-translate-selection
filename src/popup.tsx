@@ -59,6 +59,28 @@ export function buildShellStyle(view: View | { left: number; top?: number; botto
   }
 }
 
+export function buildPreviewShellStyle(settings: PluginSettings): Record<string, string> {
+  const bg = hexToRgba(settings.bgColor, settings.bgOpacity / 100)
+  const border = hexToRgba(settings.accentColor, 0.45)
+  return {
+    position: "relative",
+    width: "100%",
+    "max-width": `${settings.maxWidth}px`,
+    "min-width": "220px",
+    padding: "7px 10px 8px",
+    "border-radius": `${settings.borderRadius}px`,
+    border: `1px solid ${border}`,
+    background: bg,
+    "box-shadow": "0 14px 34px rgba(0, 0, 0, 0.45)",
+    color: settings.textColor,
+    font: `${settings.fontSize}px/1.45 ui-sans-serif, -apple-system, BlinkMacSystemFont, system-ui, sans-serif`,
+    "pointer-events": "auto",
+    "user-select": "text",
+    cursor: "default",
+    "box-sizing": "border-box",
+  }
+}
+
 export const rowStyle: Record<string, string> = {
   display: "flex",
   gap: "8px",
