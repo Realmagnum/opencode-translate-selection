@@ -269,40 +269,81 @@ export default Plugin.define({
      */
     async function showTranslationDialog(output: TransOutput, originalText: string) {
       const markdown = formatTransOutputMarkdown(output, originalText)
+      const detected = (output.detected || "auto").toUpperCase()
+      const targetLangs = output.results.map((r) => r.lang.toUpperCase()).join(", ")
 
-      const action = await context.ui.dialog.select<"copy" | "open_panel" | "close">({
-        title: `🌐 Translation (${output.detected || "auto"} → ${output.results.map((r) => r.lang).join(", ")})`,
-        placeholder: "Press Enter / y to copy or p to open panel...",
-        options: [
-          {
-            title: "📋 Copy Translation to Clipboard",
-            value: "copy",
-            description: "Copies formatted markdown to system clipboard",
-          },
-          {
-            title: "📑 Open in Side Panel",
-            value: "open_panel",
-            description: "View with persistent scrolling and shortcuts",
-          },
-          {
-            title: "✕ Dismiss",
-            value: "close",
-          },
-        ],
+      const options: Array<{
+        title: string
+        value: string
+        category?: string
+        description?: string
+        footer?: string
+      }> = []
+
+      // Add translated results as readable options
+      for (const res of output.results) {
+        const categoryName = `Перевод [${res.lang.toUpperCase()}]${res.engineUsed === "llm" ? " • LLM" : ""}`
+        if (res.error) {
+          options.push({
+            title: `Ошибка: ${res.error}`,
+            value: "error",
+            category: categoryName,
+          })
+          continue
+        }
+
+        const lines = res.text.split("\n").map((l) => l.trimEnd()).filter(Boolean)
+        if (lines.length <= 1) {
+          options.push({
+            title: res.text,
+            value: res.text,
+            category: categoryName,
+            description: "Enter / y: скопировать • p: открыть в панели",
+          })
+        } else {
+          lines.forEach((line, idx) => {
+            options.push({
+              title: line,
+              value: res.text,
+              category: idx === 0 ? categoryName : undefined,
+              description: idx === 0 ? "Enter / y: скопировать весь перевод" : undefined,
+            })
+          })
+        }
+      }
+
+      // Add quick utility actions at the bottom
+      options.push({
+        title: "📋 Скопировать весь перевод в буфер",
+        value: "copy_all",
+        category: "Действия",
+        description: "Форматированный Markdown",
+      })
+      options.push({
+        title: "📑 Открыть в боковой панели",
+        value: "open_panel",
+        category: "Действия",
+        description: "Постоянный просмотр со скроллом",
+      })
+
+      const picked = await context.ui.dialog.select<string>({
+        title: `🌐 Перевод (${detected} → ${targetLangs})`,
+        placeholder: "Enter / y: скопировать • p: открыть панель • Esc: закрыть",
+        options,
         actions: [
           {
             bind: "y",
-            title: "Copy",
+            title: "Копировать",
             selection: "none",
             onTrigger: async () => {
               await copyToClipboard(markdown)
-              context.ui.toast.show({ message: "Translation copied to clipboard", variant: "success" })
+              context.ui.toast.show({ message: "✓ Перевод скопирован в буфер", variant: "success" })
               context.ui.dialog.clear()
             },
           },
           {
             bind: "p",
-            title: "Panel",
+            title: "Панель",
             selection: "none",
             onTrigger: () => {
               context.ui.panel.open(PANEL_NAME)
@@ -312,11 +353,14 @@ export default Plugin.define({
         ],
       })
 
-      if (action === "copy") {
-        await copyToClipboard(markdown)
-        context.ui.toast.show({ message: "Translation copied to clipboard", variant: "success" })
-      } else if (action === "open_panel") {
+      if (!picked) return
+
+      if (picked === "open_panel") {
         context.ui.panel.open(PANEL_NAME)
+      } else if (picked === "copy_all" || picked !== "error") {
+        const textToCopy = picked === "copy_all" ? markdown : (picked || markdown)
+        await copyToClipboard(textToCopy)
+        context.ui.toast.show({ message: "✓ Перевод скопирован в буфер", variant: "success" })
       }
     }
 
@@ -324,6 +368,10 @@ export default Plugin.define({
      * Action: Translate Clipboard
      */
     async function handleTranslateClipboard(inputArg?: string) {
+      const currentRoute = context.ui.router.current()
+      const sessionID = currentRoute.type === "session" ? currentRoute.sessionID : undefined
+      const isPanelOpen = context.ui.panel.current()?.name === PANEL_NAME
+
       let textToTranslate = inputArg?.trim()
 
       if (!textToTranslate) {
@@ -331,6 +379,15 @@ export default Plugin.define({
       }
 
       if (!textToTranslate) {
+        if (isPanelOpen) {
+          context.ui.toast.show({
+            title: "Перевод",
+            message: "Буфер обмена пуст. Выделите или скопируйте текст перед нажатием Alt+T.",
+            variant: "warning",
+          })
+          return
+        }
+
         const prompted = await context.ui.dialog.prompt({
           title: "🌐 Translate Text",
           placeholder: "Type or paste text to translate...",
@@ -339,16 +396,28 @@ export default Plugin.define({
         textToTranslate = prompted.trim()
       }
 
-      const currentRoute = context.ui.router.current()
-      const sessionID = currentRoute.type === "session" ? currentRoute.sessionID : undefined
-
-      context.ui.toast.show({ message: "Translating clipboard...", duration: 2000 })
+      if (isPanelOpen) {
+        context.ui.toast.show({ message: "Перевод...", duration: 1500 })
+      } else {
+        context.ui.toast.show({ message: "Translating...", duration: 2000 })
+      }
 
       try {
-        const output = await performTranslation(textToTranslate, "Clipboard / Input", sessionID)
-        if (output) {
-          await showTranslationDialog(output, textToTranslate)
+        const output = await performTranslation(textToTranslate, "Буфер обмена", sessionID)
+        if (!output) return
+
+        // Если боковая панель открыта — просто обновляем её без всплывающего окна!
+        if (isPanelOpen) {
+          context.ui.toast.show({
+            message: "✓ Перевод обновлён в панели",
+            duration: 1500,
+            variant: "success",
+          })
+          return
         }
+
+        // Если панель закрыта — показываем диалог с переводом
+        await showTranslationDialog(output, textToTranslate)
       } catch (err: any) {
         context.ui.toast.show({
           title: "Translation Error",
@@ -373,6 +442,8 @@ export default Plugin.define({
       }
 
       const sessionID = currentRoute.sessionID
+      const isPanelOpen = context.ui.panel.current()?.name === PANEL_NAME
+
       context.ui.toast.show({ message: "Fetching last assistant message...", duration: 1500 })
 
       const text = await getLastAssistantText(context, sessionID)
@@ -389,9 +460,19 @@ export default Plugin.define({
 
       try {
         const output = await performTranslation(text, "Last Assistant Turn", sessionID)
-        if (output) {
-          await showTranslationDialog(output, text)
+        if (!output) return
+
+        // Если боковая панель открыта — просто обновляем её без всплывающего окна!
+        if (isPanelOpen) {
+          context.ui.toast.show({
+            message: "✓ Перевод обновлён в панели",
+            duration: 1500,
+            variant: "success",
+          })
+          return
         }
+
+        await showTranslationDialog(output, text)
       } catch (err: any) {
         context.ui.toast.show({
           title: "Translation Error",
