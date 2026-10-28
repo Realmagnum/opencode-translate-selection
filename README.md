@@ -2,6 +2,9 @@
 
 > Instant inline translation tooltip on text selection for **OpenCode Desktop**.
 
+> [!IMPORTANT]
+> **Requires OpenCode Desktop v2.2.0 or newer**. This plugin relies on the GUI plugin SDK (`@opencode/plugin/gui`) and the desktop timeline selection system introduced in OpenCode 2.2.0.
+
 Select text anywhere in the session timeline or side panels, and a floating translation popup appears automatically — positioned directly above OpenCode's native **Quote** toolbar. No hotkeys required. Click any translation line to copy it to clipboard.
 
 ![Translate Selection in OpenCode Desktop](assets/screenshot.png)
@@ -19,7 +22,7 @@ Select text anywhere in the session timeline or side panels, and a floating tran
   1. **Google Translate (Primary)** via `gtx` endpoint.
   2. **Google Translate (Secondary client)** via `dict-chrome-ex` if primary is rate-limited.
   3. **MyMemory Translate API (Fallback)** if Google services are unavailable or blocked.
-- **In-memory LRU cache**: Keeps up to 500 recent translations in memory for instant повторный просмотр with zero network overhead.
+- **In-memory LRU cache**: Keeps up to 500 recent translations in memory for instant lookups with zero network overhead.
 - **Zero runtime footprint**: Built as an ultra-compact single file bundle (`9.6 KB`) running in OpenCode's SolidJS environment.
 
 ---

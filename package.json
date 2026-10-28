@@ -1,7 +1,7 @@
 {
   "name": "opencode-translate-selection",
   "version": "0.1.0",
-  "description": "Instant inline translation tooltip on text selection for OpenCode Desktop",
+  "description": "Instant inline translation tooltip on text selection for OpenCode Desktop (v2.2.0+)",
   "author": "Realmagnum",
   "license": "MIT",
   "repository": {
