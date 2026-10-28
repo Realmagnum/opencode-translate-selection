@@ -23,7 +23,9 @@ Select text anywhere in the session timeline or side panels, and a floating tran
   2. **Google Translate (Secondary client)** via `dict-chrome-ex` if primary is rate-limited.
   3. **MyMemory Translate API (Fallback)** if Google services are unavailable or blocked.
 - **In-memory LRU cache**: Keeps up to 500 recent translations in memory for instant lookups with zero network overhead.
-- **Zero runtime footprint**: Built as an ultra-compact single file bundle (`9.6 KB`) running in OpenCode's SolidJS environment.
+- **Dedicated GUI Settings**: Full-featured settings page (`/settings?tab=translate`) with an embedded Live Preview, 5 color presets, sliders, and color pickers.
+- **Structured Formatting Roadmap**: Comprehensive specification in [STRUCTURED-TRANSLATION-SPEC.md](STRUCTURED-TRANSLATION-SPEC.md) for preserving bullet lists, numbered steps, headings, and shielded inline code.
+- **Zero runtime footprint**: Built as an ultra-compact single file bundle (`24 KB` unminified / `8.5 KB` gzip) running in OpenCode's SolidJS environment.
 
 ---
 
@@ -66,6 +68,10 @@ npm run build
 ## ⚙️ Settings (GUI)
 
 The plugin adds a dedicated **Translation** page directly inside OpenCode Desktop's **Settings** (`/settings?tab=translate`, icon: `globe`).
+
+<p align="center">
+  <img src="assets/settings.png" alt="Translation Tooltip Settings with Live Preview" width="620" />
+</p>
 
 You can customize everything in real-time with an **interactive Live Preview**:
 - **Theme Presets**: Switch instantly between *Amber Gold*, *Midnight OLED*, *Cyberpunk*, *Nordic Slate*, or *Paper Light*.
@@ -120,8 +126,9 @@ flowchart TD
 
 ---
 
-## ⚠️ Known Limitations
+## ⚠️ Known Limitations & Roadmap
 
+- **Structured lists & code blocks (Specification Ready)**: Currently, multi-line selections are normalized to single-paragraph text for fast MT processing. Full structured formatting preservation (bullet lists, numbered lists, headings, and token-shielded inline code like `tools.opencode.models()`) is fully specified in [STRUCTURED-TRANSLATION-SPEC.md](STRUCTURED-TRANSLATION-SPEC.md) and scheduled for the next release.
 - **DOM text only**: Works across the chat timeline, tool cards, markdown messages, and sidebar panels. Does **not** work on text inside the integrated terminal, because the terminal renders to an HTML5 canvas (ghostty-web) where text selection does not produce DOM nodes.
 - **Input fields**: Text selection inside textareas, inputs, or the prompt composer is intentionally ignored to avoid interfering with typing.
 
@@ -137,7 +144,7 @@ npm run watch       # Watch & rebuild on changes (auto-reloads GUI in OpenCode)
 
 ### Why is `node_modules` so large?
 
-`node_modules` (~200 dependencies) contains **only build-time tools** (`vite`, `esbuild`, `rollup`, `typescript`, `@babel/*` for JSX). When built, the entire plugin compiles into **a single 9.6 KB file** (`dist/gui-experimental.cjs`). In OpenCode Desktop at runtime, **none** of `node_modules` is loaded or used; SolidJS and Effect are provided by OpenCode itself.
+`node_modules` (~200 dependencies) contains **only build-time tools** (`vite`, `esbuild`, `rollup`, `typescript`, `@babel/*` for JSX). When built, the entire plugin compiles into **a single compact bundle** (`dist/gui-experimental.cjs`, ~24 KB / 8.5 KB gzip). In OpenCode Desktop at runtime, **none** of `node_modules` is loaded or used; SolidJS and Effect are provided by OpenCode itself.
 
 ---
 
