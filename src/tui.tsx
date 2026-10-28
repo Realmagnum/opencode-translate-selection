@@ -1,7 +1,8 @@
 /** @jsxImportSource @opentui/solid */
-import { Show } from "solid-js"
+import { For, Show, createSignal, onMount } from "solid-js"
 import { Plugin } from "@opencode/plugin/tui"
 import type { Context, PanelInput } from "@opencode/plugin/tui/context"
+import type { ScrollBoxRenderable } from "@opentui/core"
 import { readClipboard, writeClipboard } from "./clipboard.ts"
 import { translate, type TransOutput } from "./translate.ts"
 import { getLastAssistantText, formatTransOutputMarkdown } from "./tui-extract.ts"
@@ -32,6 +33,180 @@ export interface LatestTranslationState {
 }
 
 /**
+ * Centered modal dialog for displaying full multiline translations with scrolling.
+ */
+function TranslationModal(props: {
+  context: Context
+  output: TransOutput
+  originalText: string
+  onClose: () => void
+  onCopy: () => void
+  onOpenPanel: () => void
+}) {
+  const theme = () => props.context.theme
+  let scrollRef: ScrollBoxRenderable | undefined
+  const [copied, setCopied] = createSignal(false)
+
+  const detected = (props.output.detected || "auto").toUpperCase()
+  const targetLangs = props.output.results.map((r) => r.lang.toUpperCase()).join(", ")
+
+  const handleCopy = () => {
+    props.onCopy()
+    setCopied(true)
+  }
+
+  // Keymap active while this modal dialog is open
+  props.context.keymap.layer(() => ({
+    mode: "modal",
+    commands: [
+      {
+        id: "translate.modal.copy",
+        title: "Копировать",
+        bind: "y",
+        run: () => {
+          handleCopy()
+        },
+      },
+      {
+        id: "translate.modal.copy_and_close",
+        title: "Копировать и закрыть",
+        bind: "return",
+        run: () => {
+          handleCopy()
+          props.onClose()
+        },
+      },
+      {
+        id: "translate.modal.panel",
+        title: "Открыть в боковой панели",
+        bind: "p",
+        run: () => {
+          props.onOpenPanel()
+        },
+      },
+      {
+        id: "translate.modal.close",
+        title: "Закрыть",
+        bind: "escape",
+        run: () => {
+          props.onClose()
+        },
+      },
+      {
+        id: "translate.modal.close_q",
+        title: "Закрыть",
+        bind: "q",
+        run: () => {
+          props.onClose()
+        },
+      },
+      {
+        id: "translate.modal.down",
+        title: "Вниз",
+        bind: "down,j",
+        run: () => {
+          scrollRef?.scrollBy(2)
+        },
+      },
+      {
+        id: "translate.modal.up",
+        title: "Вверх",
+        bind: "up,k",
+        run: () => {
+          scrollRef?.scrollBy(-2)
+        },
+      },
+      {
+        id: "translate.modal.pagedown",
+        title: "Страница вниз",
+        bind: "pagedown,space",
+        run: () => {
+          scrollRef?.scrollBy(6)
+        },
+      },
+      {
+        id: "translate.modal.pageup",
+        title: "Страница вверх",
+        bind: "pageup",
+        run: () => {
+          scrollRef?.scrollBy(-6)
+        },
+      },
+    ],
+  }))
+
+  const termHeight = props.context.renderer?.terminalHeight || 30
+  const modalHeight = Math.max(12, Math.min(26, Math.floor(termHeight * 0.75)))
+
+  return (
+    <box
+      flexDirection="column"
+      width="100%"
+      height={modalHeight}
+      paddingLeft={2}
+      paddingRight={2}
+      paddingTop={1}
+      paddingBottom={1}
+      backgroundColor={theme().background?.raised?.base ?? "#1c1c1c"}
+      borderStyle="rounded"
+      borderColor={theme().border?.base ?? "#475569"}
+    >
+      {/* Header */}
+      <box flexDirection="row" justifyContent="space-between" paddingBottom={1} border={["bottom"]} borderColor={theme().border?.base ?? "#334155"}>
+        <box flexDirection="row" gap={1}>
+          <text fg="#ffd75e">{"🌐 ПЕРЕВОД"}</text>
+          <text fg="#38bdf8">{`[${detected} → ${targetLangs}]`}</text>
+        </box>
+        <text fg={theme().text?.subdued ?? "#94a3b8"}>{"[Esc / q] Закрыть"}</text>
+      </box>
+
+      {/* Main Full Scrollable Translation Text */}
+      <box flexGrow={1} minHeight={0} paddingTop={1} paddingBottom={1}>
+        <scrollbox
+          ref={(el: unknown) => {
+            scrollRef = el as ScrollBoxRenderable
+          }}
+          focused={true}
+          width="100%"
+          height="100%"
+        >
+          <box flexDirection="column" gap={1}>
+            <For each={props.output.results}>
+              {(res) => (
+                <box flexDirection="column" gap={1} paddingBottom={1}>
+                  <box flexDirection="row" gap={1}>
+                    <text fg="#38bdf8">{`[${res.lang.toUpperCase()}]`}</text>
+                    <Show when={res.engineUsed === "llm"}>
+                      <text fg="#a3e635">{"• LLM"}</text>
+                    </Show>
+                    <Show when={res.error}>
+                      <text fg="#ef4444">{`(Ошибка: ${res.error})`}</text>
+                    </Show>
+                  </box>
+                  <text wrapMode="word" fg={theme().text?.default ?? "#f8fafc"}>
+                    {res.text || "(пустой перевод)"}
+                  </text>
+                </box>
+              )}
+            </For>
+          </box>
+        </scrollbox>
+      </box>
+
+      {/* Footer Controls */}
+      <box flexDirection="row" justifyContent="space-between" paddingTop={1} border={["top"]} borderColor={theme().border?.base ?? "#334155"}>
+        <text fg={theme().text?.subdued ?? "#94a3b8"}>
+          {"[y] Копия  [Enter] Копия+Закрыть  [p] В панель  [↑/↓] Скролл  [q] Закрыть"}
+        </text>
+        <Show when={copied()}>
+          <text fg="#10b981">{"✓ Скопировано!"}</text>
+        </Show>
+      </box>
+    </box>
+  )
+}
+
+/**
  * Solid component rendered inside the session side panel (session.panel slot).
  */
 function TranslationPanel(props: {
@@ -47,50 +222,102 @@ function TranslationPanel(props: {
   const panel = props.panel
   const ctx = props.context
   const theme = () => ctx.theme
+  let scrollRef: ScrollBoxRenderable | undefined
 
-  // Register panel-specific shortcuts active when panel is focused
+  onMount(() => {
+    props.panel.focus()
+  })
+
+  // Register panel-specific shortcuts active when panel owns input
   ctx.keymap.layer(() => ({
-    target: () => null,
     commands: [
       {
         id: "translate.panel.clipboard",
-        title: "Translate clipboard",
+        title: "Перевести буфер обмена",
         bind: "t",
         run: () => props.onTranslateClipboard(),
       },
       {
         id: "translate.panel.last",
-        title: "Translate last reply",
+        title: "Перевести последний ответ",
         bind: "l",
         run: () => props.onTranslateLast(),
       },
       {
         id: "translate.panel.copy",
-        title: "Copy translation",
+        title: "Скопировать перевод",
         bind: "y",
         run: () => props.onCopyTranslation(),
       },
       {
         id: "translate.panel.mode",
-        title: "Cycle engine mode",
+        title: "Переключить режим движка",
         bind: "m",
         run: () => props.onCycleEngineMode(),
       },
       {
         id: "translate.panel.fullscreen",
-        title: "Toggle fullscreen",
+        title: "Полноэкранный режим",
         bind: "f",
-        run: panel.toggleFullscreen,
+        run: () => {
+          if (panel.width < 108) {
+            ctx.ui.toast.show({
+              title: "Размер окна",
+              message: "Терминал узкий (< 108 колонок), панель уже занимает всё доступное место",
+              variant: "info",
+              duration: 2500,
+            })
+            return
+          }
+          panel.toggleFullscreen()
+          const isFull = panel.presentation === "fullscreen"
+          ctx.ui.toast.show({
+            message: isFull ? "Обычный вид панели" : "Панель на полный экран",
+            duration: 1500,
+          })
+        },
+      },
+      {
+        id: "translate.panel.scroll_down",
+        title: "Вниз",
+        bind: "down,j",
+        run: () => {
+          scrollRef?.scrollBy(2)
+        },
+      },
+      {
+        id: "translate.panel.scroll_up",
+        title: "Вверх",
+        bind: "up,k",
+        run: () => {
+          scrollRef?.scrollBy(-2)
+        },
+      },
+      {
+        id: "translate.panel.page_down",
+        title: "Страница вниз",
+        bind: "pagedown,space",
+        run: () => {
+          scrollRef?.scrollBy(6)
+        },
+      },
+      {
+        id: "translate.panel.page_up",
+        title: "Страница вверх",
+        bind: "pageup",
+        run: () => {
+          scrollRef?.scrollBy(-6)
+        },
       },
       {
         id: "translate.panel.close",
-        title: "Close panel",
+        title: "Закрыть панель",
         bind: "escape",
         run: panel.close,
       },
       {
         id: "translate.panel.close_q",
-        title: "Close panel",
+        title: "Закрыть панель",
         bind: "q",
         run: panel.close,
       },
@@ -106,51 +333,68 @@ function TranslationPanel(props: {
   const targetsBadge = () => props.settings().targets
 
   return (
-    <box flexDirection="column" padding={1} width="100%" height="100%">
+    <box
+      flexDirection="column"
+      padding={1}
+      width="100%"
+      height="100%"
+      onMouseUp={() => props.panel.focus()}
+    >
       {/* Header */}
-      <box flexDirection="row" justifyContent="space-between" paddingBottom={1} border={["bottom"]}>
-        <text fg="#ffd75e">
-          {"🌐 TRANSLATE"}
-        </text>
-        <text fg="#38bdf8">
-          {`[${modeBadge()} | ${targetsBadge()}]`}
-        </text>
+      <box flexDirection="row" justifyContent="space-between" paddingBottom={1} border={["bottom"]} borderColor={theme().border?.base ?? "#334155"}>
+        <box flexDirection="row" gap={1}>
+          <text fg="#ffd75e">{"🌐 ПЕРЕВОД"}</text>
+          <text fg="#38bdf8">{`[${modeBadge()} | ${targetsBadge()}]`}</text>
+        </box>
+        <Show
+          when={props.panel.focused}
+          fallback={<text fg="#f59e0b">{"(клик для фокуса)"}</text>}
+        >
+          <text fg="#10b981">{"[фокус]"}</text>
+        </Show>
       </box>
 
       {/* Status Notifications */}
       <Show when={props.latest.status === "translating"}>
         <box paddingTop={1}>
-          <text fg="#facc15">{"⏳ Translating..."}</text>
+          <text fg="#facc15">{"⏳ Перевод в процессе..."}</text>
         </box>
       </Show>
 
       <Show when={props.latest.status === "error"}>
         <box paddingTop={1}>
-          <text fg="#ef4444">{`❌ Error: ${props.latest.errorMessage || "Unknown error"}`}</text>
+          <text fg="#ef4444">{`❌ Ошибка: ${props.latest.errorMessage || "Неизвестная ошибка"}`}</text>
         </box>
       </Show>
 
-      {/* Scrollable Translation Output */}
+      {/* Scrollable Translation Output with Word Wrap */}
       <box flexGrow={1} minHeight={0} paddingTop={1} paddingBottom={1}>
-        <scrollbox width="100%" height="100%">
+        <scrollbox
+          ref={(el: unknown) => {
+            scrollRef = el as ScrollBoxRenderable
+          }}
+          focused={true}
+          width="100%"
+          height="100%"
+        >
           <Show
             when={props.latest.output && props.latest.output.results.length > 0}
             fallback={
               <box flexDirection="column" gap={1}>
                 <text fg={theme().text?.subdued ?? "#94a3b8"}>
-                  {"No translation active yet."}
+                  {"Перевод пока не выполнен."}
                 </text>
                 <text fg={theme().text?.subdued ?? "#94a3b8"}>
-                  {"Press [t] to translate clipboard or [l] to translate last assistant message."}
+                  {"Нажмите [t] для перевода буфера или [l] для перевода ответа ассистента."}
                 </text>
               </box>
             }
           >
             <box flexDirection="column" gap={1}>
               <Show when={props.latest.source}>
-                <text fg="#64748b">{`Source: ${props.latest.source}`}</text>
+                <text fg="#64748b">{`Источник: ${props.latest.source}`}</text>
               </Show>
-              <text fg={theme().text?.default ?? "#f8fafc"}>
+              <text wrapMode="word" fg={theme().text?.default ?? "#f8fafc"}>
                 {formattedOutput()}
               </text>
             </box>
@@ -159,12 +403,12 @@ function TranslationPanel(props: {
       </box>
 
       {/* Footer Hotkey Legend */}
-      <box flexDirection="row" paddingTop={1} border={["top"]} justifyContent="space-between">
+      <box flexDirection="row" paddingTop={1} border={["top"]} borderColor={theme().border?.base ?? "#334155"} justifyContent="space-between">
         <text fg={theme().text?.subdued ?? "#94a3b8"}>
-          {"[t] Clip  [l] Last  [y] Copy  [m] Mode  [f] Full  [q] Close"}
+          {"[t] Буфер  [l] Ответ  [y] Копия  [m] Режим  [f] Экран  [q] Закрыть"}
         </text>
         <Show when={props.latest.lastCopied}>
-          <text fg="#10b981">{"✓ Copied!"}</text>
+          <text fg="#10b981">{"✓ Скопировано!"}</text>
         </Show>
       </box>
     </box>
@@ -265,103 +509,28 @@ export default Plugin.define({
     }
 
     /**
-     * Shows translation result in an interactive select dialog.
+     * Shows full translation in a scrollable, multiline modal dialog.
      */
-    async function showTranslationDialog(output: TransOutput, originalText: string) {
+    function showTranslationModal(output: TransOutput, originalText: string) {
       const markdown = formatTransOutputMarkdown(output, originalText)
-      const detected = (output.detected || "auto").toUpperCase()
-      const targetLangs = output.results.map((r) => r.lang.toUpperCase()).join(", ")
 
-      const options: Array<{
-        title: string
-        value: string
-        category?: string
-        description?: string
-        footer?: string
-      }> = []
-
-      // Add translated results as readable options
-      for (const res of output.results) {
-        const categoryName = `Перевод [${res.lang.toUpperCase()}]${res.engineUsed === "llm" ? " • LLM" : ""}`
-        if (res.error) {
-          options.push({
-            title: `Ошибка: ${res.error}`,
-            value: "error",
-            category: categoryName,
-          })
-          continue
-        }
-
-        const lines = res.text.split("\n").map((l) => l.trimEnd()).filter(Boolean)
-        if (lines.length <= 1) {
-          options.push({
-            title: res.text,
-            value: res.text,
-            category: categoryName,
-            description: "Enter / y: скопировать • p: открыть в панели",
-          })
-        } else {
-          lines.forEach((line, idx) => {
-            options.push({
-              title: line,
-              value: res.text,
-              category: idx === 0 ? categoryName : undefined,
-              description: idx === 0 ? "Enter / y: скопировать весь перевод" : undefined,
-            })
-          })
-        }
-      }
-
-      // Add quick utility actions at the bottom
-      options.push({
-        title: "📋 Скопировать весь перевод в буфер",
-        value: "copy_all",
-        category: "Действия",
-        description: "Форматированный Markdown",
-      })
-      options.push({
-        title: "📑 Открыть в боковой панели",
-        value: "open_panel",
-        category: "Действия",
-        description: "Постоянный просмотр со скроллом",
-      })
-
-      const picked = await context.ui.dialog.select<string>({
-        title: `🌐 Перевод (${detected} → ${targetLangs})`,
-        placeholder: "Enter / y: скопировать • p: открыть панель • Esc: закрыть",
-        options,
-        actions: [
-          {
-            bind: "y",
-            title: "Копировать",
-            selection: "none",
-            onTrigger: async () => {
-              await copyToClipboard(markdown)
-              context.ui.toast.show({ message: "✓ Перевод скопирован в буфер", variant: "success" })
-              context.ui.dialog.clear()
-            },
-          },
-          {
-            bind: "p",
-            title: "Панель",
-            selection: "none",
-            onTrigger: () => {
-              context.ui.panel.open(PANEL_NAME)
-              context.ui.dialog.clear()
-            },
-          },
-        ],
-      })
-
-      if (!picked) return
-
-      if (picked === "open_panel") {
-        context.ui.panel.open(PANEL_NAME)
-      } else if (picked === "copy_all" || picked !== "error") {
-        const textToCopy = picked === "copy_all" ? markdown : (picked || markdown)
-        await copyToClipboard(textToCopy)
-        context.ui.toast.show({ message: "✓ Перевод скопирован в буфер", variant: "success" })
-      }
+      context.ui.dialog.set({ size: "large", centered: true })
+      context.ui.dialog.show(() => (
+        <TranslationModal
+          context={context}
+          output={output}
+          originalText={originalText}
+          onClose={() => context.ui.dialog.clear()}
+          onCopy={async () => {
+            await copyToClipboard(markdown)
+            context.ui.toast.show({ message: "✓ Перевод скопирован в буфер", variant: "success" })
+          }}
+          onOpenPanel={() => {
+            context.ui.dialog.clear()
+            context.ui.panel.open(PANEL_NAME)
+          }}
+        />
+      ))
     }
 
     /**
@@ -382,15 +551,15 @@ export default Plugin.define({
         if (isPanelOpen) {
           context.ui.toast.show({
             title: "Перевод",
-            message: "Буфер обмена пуст. Выделите или скопируйте текст перед нажатием Alt+T.",
+            message: "Буфер обмена пуст. Скопируйте текст перед нажатием Alt+T.",
             variant: "warning",
           })
           return
         }
 
         const prompted = await context.ui.dialog.prompt({
-          title: "🌐 Translate Text",
-          placeholder: "Type or paste text to translate...",
+          title: "🌐 Перевод текста",
+          placeholder: "Введите или вставьте текст для перевода...",
         })
         if (!prompted?.trim()) return
         textToTranslate = prompted.trim()
@@ -399,14 +568,14 @@ export default Plugin.define({
       if (isPanelOpen) {
         context.ui.toast.show({ message: "Перевод...", duration: 1500 })
       } else {
-        context.ui.toast.show({ message: "Translating...", duration: 2000 })
+        context.ui.toast.show({ message: "Перевод...", duration: 2000 })
       }
 
       try {
         const output = await performTranslation(textToTranslate, "Буфер обмена", sessionID)
         if (!output) return
 
-        // Если боковая панель открыта — просто обновляем её без всплывающего окна!
+        // Если боковая панель открыта — просто обновляем её без модального окна!
         if (isPanelOpen) {
           context.ui.toast.show({
             message: "✓ Перевод обновлён в панели",
@@ -416,12 +585,12 @@ export default Plugin.define({
           return
         }
 
-        // Если панель закрыта — показываем диалог с переводом
-        await showTranslationDialog(output, textToTranslate)
+        // Если панель закрыта — открываем полноценное скроллируемое модальное окно
+        showTranslationModal(output, textToTranslate)
       } catch (err: any) {
         context.ui.toast.show({
-          title: "Translation Error",
-          message: err?.message || "Failed to translate",
+          title: "Ошибка перевода",
+          message: err?.message || "Не удалось перевести",
           variant: "error",
         })
       }
@@ -434,8 +603,8 @@ export default Plugin.define({
       const currentRoute = context.ui.router.current()
       if (currentRoute.type !== "session") {
         context.ui.toast.show({
-          title: "Translation",
-          message: "Open a session first to translate assistant messages",
+          title: "Перевод",
+          message: "Откройте сессию для перевода ответа ассистента",
           variant: "warning",
         })
         return
@@ -444,25 +613,24 @@ export default Plugin.define({
       const sessionID = currentRoute.sessionID
       const isPanelOpen = context.ui.panel.current()?.name === PANEL_NAME
 
-      context.ui.toast.show({ message: "Fetching last assistant message...", duration: 1500 })
+      context.ui.toast.show({ message: "Получение ответа ассистента...", duration: 1500 })
 
       const text = await getLastAssistantText(context, sessionID)
       if (!text) {
         context.ui.toast.show({
-          title: "Translation",
-          message: "No assistant message found in current session",
+          title: "Перевод",
+          message: "В текущей сессии нет сообщений ассистента",
           variant: "warning",
         })
         return
       }
 
-      context.ui.toast.show({ message: "Translating last turn...", duration: 2000 })
+      context.ui.toast.show({ message: "Перевод...", duration: 2000 })
 
       try {
-        const output = await performTranslation(text, "Last Assistant Turn", sessionID)
+        const output = await performTranslation(text, "Последний ответ ассистента", sessionID)
         if (!output) return
 
-        // Если боковая панель открыта — просто обновляем её без всплывающего окна!
         if (isPanelOpen) {
           context.ui.toast.show({
             message: "✓ Перевод обновлён в панели",
@@ -472,11 +640,11 @@ export default Plugin.define({
           return
         }
 
-        await showTranslationDialog(output, text)
+        showTranslationModal(output, text)
       } catch (err: any) {
         context.ui.toast.show({
-          title: "Translation Error",
-          message: err?.message || "Failed to translate last turn",
+          title: "Ошибка перевода",
+          message: err?.message || "Не удалось перевести",
           variant: "error",
         })
       }
@@ -494,10 +662,18 @@ export default Plugin.define({
         draft.engineMode = nextMode
       })
 
+      const desc =
+        nextMode === "auto"
+          ? "AUTO (Google MT для простых фраз, LLM для кода и списков)"
+          : nextMode === "fast"
+            ? "FAST (Только Google Translate / MyMemory, 0 токенов)"
+            : "LLM (Перевод моделью активной сессии)"
+
       context.ui.toast.show({
-        title: "Translation Engine",
-        message: `Mode: ${nextMode.toUpperCase()}`,
+        title: "Режим перевода",
+        message: desc,
         variant: "info",
+        duration: 3000,
       })
     }
 
@@ -506,7 +682,7 @@ export default Plugin.define({
      */
     async function handleCopyTranslation() {
       if (!latest.output) {
-        context.ui.toast.show({ message: "No translation to copy", variant: "warning" })
+        context.ui.toast.show({ message: "Нет перевода для копирования", variant: "warning" })
         return
       }
 
@@ -516,7 +692,7 @@ export default Plugin.define({
         updateLatest((draft) => {
           draft.lastCopied = true
         })
-        context.ui.toast.show({ message: "✓ Copied to clipboard", variant: "success" })
+        context.ui.toast.show({ message: "✓ Скопировано в буфер обмена", variant: "success" })
       }
     }
 
@@ -525,57 +701,57 @@ export default Plugin.define({
      */
     async function handleConfig() {
       const picked = await context.ui.dialog.select<"languages" | "engine" | "reset">({
-        title: "⚙️ Translation Configuration",
+        title: "⚙️ Настройки перевода (TUI)",
         options: [
           {
-            title: `Target Languages: [${settings.targets}]`,
+            title: `Языки перевода: [${settings.targets}]`,
             value: "languages",
-            description: "Configure comma-separated target language codes (e.g. ru, en)",
+            description: "Коды языков через запятую (например, ru, en или просто ru)",
           },
           {
-            title: `Engine Mode: [${settings.engineMode.toUpperCase()}]`,
+            title: `Режим движка: [${settings.engineMode.toUpperCase()}]`,
             value: "engine",
             description: "Auto (Smart Hybrid) / Fast MT (Google) / Session LLM",
           },
           {
-            title: "Reset to Defaults",
+            title: "Сбросить к умолчаниям",
             value: "reset",
-            description: "Restore target languages and mode to default",
+            description: "Вернуть целевые языки и режим к стандартным",
           },
         ],
       })
 
       if (picked === "languages") {
         const input = await context.ui.dialog.prompt({
-          title: "Target Languages",
-          description: "Enter comma-separated ISO language codes (e.g. ru, en, de, zh)",
+          title: "Целевые языки",
+          description: "Введите ISO-коды языков через запятую (например: ru, en, de, zh)",
           value: settings.targets,
         })
         if (input && input.trim()) {
           await updateSettings((draft) => {
             draft.targets = input.trim()
           })
-          context.ui.toast.show({ message: `Targets set to: ${input.trim()}`, variant: "success" })
+          context.ui.toast.show({ message: `Целевые языки: ${input.trim()}`, variant: "success" })
         }
       } else if (picked === "engine") {
         const mode = await context.ui.dialog.select<"auto" | "fast" | "llm">({
-          title: "Engine Mode",
+          title: "Режим движка",
           current: settings.engineMode,
           options: [
             {
               title: "Auto (Smart Hybrid)",
               value: "auto",
-              description: "Google MT for simple phrases, Session LLM for structured lists & code",
+              description: "Google MT для простых фраз, Session LLM для списков и кода",
             },
             {
               title: "Fast MT Only",
               value: "fast",
-              description: "Google Translate / MyMemory with zero token usage",
+              description: "Google Translate / MyMemory с нулевым расходом токенов",
             },
             {
               title: "Session LLM Only",
               value: "llm",
-              description: "Always translate via current session's active model",
+              description: "Всегда переводить моделью текущей сессии",
             },
           ],
         })
@@ -583,13 +759,13 @@ export default Plugin.define({
           await updateSettings((draft) => {
             draft.engineMode = mode
           })
-          context.ui.toast.show({ message: `Engine mode: ${mode.toUpperCase()}`, variant: "success" })
+          context.ui.toast.show({ message: `Режим: ${mode.toUpperCase()}`, variant: "success" })
         }
       } else if (picked === "reset") {
         await updateSettings((draft) => {
           Object.assign(draft, DEFAULT_TUI_SETTINGS)
         })
-        context.ui.toast.show({ message: "Settings restored to defaults", variant: "info" })
+        context.ui.toast.show({ message: "Настройки сброшены", variant: "info" })
       }
     }
 
