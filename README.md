@@ -1,80 +1,137 @@
 # opencode-translate-selection
 
-Select text in OpenCode Desktop and get a floating translation popup. No hotkey: the
-popup appears on its own, above the built-in **Quote** toolbar, in a warm dark box with
-yellow text. Click a line to copy it.
+> Instant inline translation tooltip on text selection for **OpenCode Desktop**.
 
-Works anywhere in the app window where the selection is real DOM text — the session
-timeline, panels, settings. Not the integrated terminal: it draws to a canvas, so its
-selection is not DOM text.
+Select text anywhere in the session timeline or side panels, and a floating translation popup appears automatically — positioned directly above OpenCode's native **Quote** toolbar. No hotkeys required. Click any translation line to copy it to clipboard.
 
-## Install
+![Translate Selection in OpenCode Desktop](assets/screenshot.png)
 
-Already registered in `~/.config/opencode/opencode.json`:
+---
+
+## ✨ Features
+
+- **Zero-friction workflow**: Just select text with your mouse. The translation appears automatically after a subtle 140ms debounce.
+- **Smart positioning**: Floats cleanly **above** the built-in `[ ❝ Quote ]` toolbar (`QUOTE_CLEARANCE = 52px`), without overlapping or jumping.
+- **Bilingual & smart filtering**: Automatically detects the source language. Translates into your configured target languages (`RU` and `EN` by default) and drops the language matching the source (e.g. selecting English text shows only the Russian translation).
+- **High-contrast warm dark theme**: Deep olive background (`rgba(43, 34, 10, 0.97)`), bright yellow translation text (`#ffd75e`), and golden language badges (`#c9a83f`).
+- **One-click copy**: Click on any translated line to copy it directly to your clipboard.
+- **Multi-tier fallback engine**:
+  1. **Google Translate (Primary)** via `gtx` endpoint.
+  2. **Google Translate (Secondary client)** via `dict-chrome-ex` if primary is rate-limited.
+  3. **MyMemory Translate API (Fallback)** if Google services are unavailable or blocked.
+- **In-memory LRU cache**: Keeps up to 500 recent translations in memory for instant повторный просмотр with zero network overhead.
+- **Zero runtime footprint**: Built as an ultra-compact single file bundle (`9.6 KB`) running in OpenCode's SolidJS environment.
+
+---
+
+## 📦 Installation
+
+### Option A: Install from GitHub
+
+```bash
+opencode plugin add github:Realmagnum/opencode-translate-selection
+```
+
+Restart OpenCode Desktop after installation.
+
+### Option B: Local development / manual installation
+
+1. Clone the repository into your projects directory:
+
+```bash
+git clone https://github.com/Realmagnum/opencode-translate-selection.git \
+  ~/Documents/!Projects/opencode-translate-selection
+cd ~/Documents/!Projects/opencode-translate-selection
+npm install
+npm run build
+```
+
+2. Add the absolute path to `~/.config/opencode/opencode.json`:
 
 ```jsonc
 {
   "plugins": [
-    "…",
-    "/Users/rm/Documents/!Projects/opencode-translate-selection"
+    "/Users/you/Documents/!Projects/opencode-translate-selection"
   ]
 }
 ```
 
-Restart OpenCode Desktop once: the server part and the GUI are read at start. After that
-`npm run watch` reloads the GUI in every window on each rebuild, without a restart.
+3. Restart OpenCode Desktop once. Subsequent edits via `npm run watch` reload the GUI automatically without needing an app restart!
 
-## Options
+---
+
+## ⚙️ Configuration
+
+In your `~/.config/opencode/opencode.json`:
 
 ```jsonc
 {
   "plugins": [
     {
-      "package": "/Users/rm/Documents/!Projects/opencode-translate-selection",
-      "options": { "targets": ["ru", "en"] }
+      "package": "github:Realmagnum/opencode-translate-selection",
+      "options": {
+        // Target languages to translate into (default: ["ru", "en"])
+        "targets": ["ru", "en"],
+        // Enable diagnostic toasts on every selection
+        "debug": false
+      }
     }
   ]
 }
 ```
 
-`targets` defaults to `["ru", "en"]`. The source language is detected, and a target equal
-to it is dropped, so an English selection shows only the Russian line and vice versa.
+---
 
-## How it works
+## 🛠️ How It Works
 
-- `src/gui.tsx` — plugin definition. The window half mounts one component into the
-  `window.bottom` slot; the main-process half provides the `translate-selection.translate`
-  Ipc.
-- `src/popup.tsx` — reads `window.getSelection()` (this is the one piece the GUI SDK does
-  not expose), positions itself with `position: fixed` through a Solid `Portal`, and
-  renders the result. The popup clears the quote toolbar with `QUOTE_CLEARANCE` (52px)
-  measured from the selection's top edge.
-- `src/translate.ts` — runs in the Electron main process, where no CSP or CORS applies.
-  Uses Google's keyless `gtx` endpoint, caches 500 entries in memory, one request per
-  target language.
-
-## Tuning
-
-| What | Where |
-| --- | --- |
-| Gap above the quote toolbar | `QUOTE_CLEARANCE` in `src/popup.tsx` |
-| Popup width | `MAX_WIDTH` in `src/popup.tsx` |
-| Character limit | `MAX_CHARS` in `src/popup.tsx` |
-| Colours, font | `shell()`, `langTag`, `textStyle` in `src/popup.tsx` |
-
-## Build
-
-```bash
-npm install
-npm run build      # dist/gui-experimental.cjs
-npm run typecheck
-npm run watch      # rebuild on change, reloads the GUI in the app
+```
+┌────────────────────────────────────────────────────────┐
+│  OpenCode Desktop (Electron Window / SolidJS Renderer) │
+│                                                        │
+│  User selects text in timeline                         │
+│   └─► `window.getSelection()`                          │
+│   └─► `selection.getRangeAt(0).getBoundingClientRect()`│
+│   └─► Solid `<Portal>` renders above Quote toolbar     │
+└──────────────────────────┬─────────────────────────────┘
+                           │ Ipc (Effect Schema bridge)
+                           ▼
+┌────────────────────────────────────────────────────────┐
+│  Electron Main Process (Node.js runtime)               │
+│                                                        │
+│  1. Check in-memory LRU Cache                          │
+│  2. Google Translate (gtx / dict-chrome-ex)            │
+│  3. Fallback: MyMemory Translate API                   │
+│  4. Deduplicate & return detected source + results     │
+└────────────────────────────────────────────────────────┘
 ```
 
-## Limits
+1. **Window setup (`src/gui.tsx`)**: Mounts a non-intrusive reactive surface into the `window.bottom` slot.
+2. **Selection & Popup (`src/popup.tsx`)**: Tracks mouse release on the document, reads the active `Selection` range, measures coordinates, and portals a fixed-position popup above the native Quote toolbar.
+3. **Electron Main Bridge (`src/translate.ts`)**: Translation requests run in the Electron main process via typed OpenCode `Ipc`, bypassing renderer CORS or Content Security Policy restrictions completely.
 
-- The popup hides on scroll, resize, `Esc`, a click outside, or a new selection.
-- Selections inside the composer, inputs and text fields are ignored.
-- Long selections are trimmed to 600 characters and say so in the footer.
-- The GUI plugin API is experimental in 2.2.0: `window.getSelection()` is not part of it
-  and may need revisiting after an app update.
+---
+
+## ⚠️ Known Limitations
+
+- **DOM text only**: Works across the chat timeline, tool cards, markdown messages, and sidebar panels. Does **not** work on text inside the integrated terminal, because the terminal renders to an HTML5 canvas (ghostty-web) where text selection does not produce DOM nodes.
+- **Input fields**: Text selection inside textareas, inputs, or the prompt composer is intentionally ignored to avoid interfering with typing.
+
+---
+
+## 💻 Development
+
+```bash
+npm run typecheck   # Typecheck TypeScript against @opencode/plugin
+npm run build       # Build dist/gui-experimental.cjs (Vite + Solid)
+npm run watch       # Watch & rebuild on changes (auto-reloads GUI in OpenCode)
+```
+
+### Why is `node_modules` so large?
+
+`node_modules` (~200 dependencies) contains **only build-time tools** (`vite`, `esbuild`, `rollup`, `typescript`, `@babel/*` for JSX). When built, the entire plugin compiles into **a single 9.6 KB file** (`dist/gui-experimental.cjs`). In OpenCode Desktop at runtime, **none** of `node_modules` is loaded or used; SolidJS and Effect are provided by OpenCode itself.
+
+---
+
+## 📄 License
+
+[MIT](LICENSE) © 2026 [Realmagnum](https://github.com/Realmagnum)

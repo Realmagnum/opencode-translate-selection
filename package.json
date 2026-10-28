@@ -1,9 +1,35 @@
 {
   "name": "opencode-translate-selection",
   "version": "0.1.0",
-  "private": true,
+  "description": "Instant inline translation tooltip on text selection for OpenCode Desktop",
+  "author": "Realmagnum",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Realmagnum/opencode-translate-selection.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Realmagnum/opencode-translate-selection/issues"
+  },
+  "homepage": "https://github.com/Realmagnum/opencode-translate-selection#readme",
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "translation",
+    "translator",
+    "tooltip",
+    "desktop",
+    "solidjs",
+    "electron"
+  ],
   "type": "module",
-  "description": "Translate the selected text in OpenCode Desktop and show it in a floating popup above the quote toolbar.",
+  "files": [
+    "dist",
+    "src",
+    "assets",
+    "README.md",
+    "LICENSE"
+  ],
   "exports": {
     ".": "./src/index.ts",
     "./gui-experimental": "./dist/gui-experimental.cjs"
@@ -17,7 +43,7 @@
     "@opencode/plugin": "^2.2.0"
   },
   "devDependencies": {
-    "solid-js": "1.9",
+    "solid-js": "^1.9.17",
     "typescript": "^5.9.3",
     "vite": "^7.3.7",
     "vite-plugin-solid": "^2.11.14"
