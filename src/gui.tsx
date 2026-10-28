@@ -3,18 +3,19 @@ import type { Persisted } from "@opencode/plugin/gui"
 import { Translate } from "./contract"
 import { SelectionPopup } from "./popup"
 import { translate } from "./translate"
-import { DEFAULT_SETTINGS, SettingsSchema, type PluginSettings } from "./settings"
+import { DEFAULT_SETTINGS, SettingsSchema, type PluginSettings, type StoredSettings } from "./settings"
 import { SettingsView } from "./settings-view"
 
 function TranslationSurface(props: {
-  store: Persisted<PluginSettings>
+  store: Persisted<StoredSettings>
   client: ReturnType<any>
   system: any
   options: any
   t: (key: string) => string
   toast: any
+  currentSessionId?: () => string | undefined
 }) {
-  const settings = () => props.store.value ?? DEFAULT_SETTINGS
+  const settings = (): PluginSettings => ({ ...DEFAULT_SETTINGS, ...props.store.value })
 
   return (
     <SelectionPopup
@@ -28,13 +29,14 @@ function TranslationSurface(props: {
       }}
       translate={(input) => props.client.run(input)}
       copy={(text) => void props.system.copy(text)}
+      currentSessionId={props.currentSessionId}
       debug={props.options.debug === true ? (message: string) => props.toast.show({ title: message }) : undefined}
     />
   )
 }
 
-function SettingsTab(props: { store: Persisted<PluginSettings> }) {
-  const settings = () => props.store.value ?? DEFAULT_SETTINGS
+function SettingsTab(props: { store: Persisted<StoredSettings> }) {
+  const settings = (): PluginSettings => ({ ...DEFAULT_SETTINGS, ...props.store.value })
 
   const update = (patch: Partial<PluginSettings>) => {
     props.store.update((draft) => {
@@ -85,6 +87,7 @@ export default Plugin.define({
           options={ctx.options}
           t={(k) => ctx.t(k)}
           toast={ctx.toast}
+          currentSessionId={() => ctx.sessions.current()?.id}
         />
       ),
     })
@@ -103,9 +106,11 @@ export default Plugin.define({
 
     ctx.provide(Translate, {
       run: (input, caller) =>
-        translate(input, caller.signal, (level, message, data) =>
-          data ? ctx.log.write(level, message, data) : ctx.log.write(level, message),
-        ),
+        translate(input, caller.signal, {
+          client: ctx.client,
+          log: (level, message, data) =>
+            data ? ctx.log.write(level, message, data) : ctx.log.write(level, message),
+        }),
     })
   },
 })

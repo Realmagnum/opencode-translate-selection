@@ -1,7 +1,8 @@
-import { For } from "solid-js"
+import { For, Show } from "solid-js"
 import {
   DEFAULT_SETTINGS,
   PRESETS,
+  type EngineMode,
   type PluginSettings,
   type Preset,
 } from "./settings"
@@ -81,7 +82,7 @@ const buttonStyle: Record<string, string> = {
 }
 
 export function SettingsView(props: Props) {
-  const c = () => props.settings()
+  const c = () => ({ ...DEFAULT_SETTINGS, ...props.settings() })
 
   const applyPreset = (preset: Preset) => {
     props.update({
@@ -90,6 +91,10 @@ export function SettingsView(props: Props) {
       textColor: preset.textColor,
       accentColor: preset.accentColor,
     })
+  }
+
+  const setEngine = (mode: EngineMode) => {
+    props.update({ engineMode: mode })
   }
 
   return (
@@ -122,12 +127,46 @@ export function SettingsView(props: Props) {
         >
           <div style={buildPreviewShellStyle(c())}>
             <div style={rowStyle}>
-              <span style={buildLangTagStyle(c())}>RU</span>
-              <span style={buildTextStyle(c())}>Исследования из нескольких источников: сбор структурированных данных</span>
+              <div style={{ display: "flex", "flex-direction": "column", "align-items": "center", gap: "3px" }}>
+                <span style={buildLangTagStyle(c())}>RU</span>
+                <span
+                  style={{
+                    "font-size": "8px",
+                    "font-weight": "700",
+                    padding: "0 3px",
+                    "border-radius": "3px",
+                    background: "rgba(255, 215, 94, 0.16)",
+                    color: c().accentColor,
+                    "letter-spacing": "0.05em",
+                    "line-height": "1.2",
+                  }}
+                >
+                  LLM
+                </span>
+              </div>
+              <div style={{ flex: 1, "min-width": 0, "font-size": `${c().fontSize}px`, color: c().textColor }}>
+                <div style={{ "font-weight": "600", "margin-bottom": "3px" }}>Ключевые особенности:</div>
+                <div style={{ display: "flex", gap: "6px", "align-items": "baseline", "padding-left": "2px" }}>
+                  <span style={{ color: c().accentColor, "font-size": "11px", "user-select": "none" }}>•</span>
+                  <span>
+                    Поиск по модели:{" "}
+                    <code
+                      style={{
+                        background: "rgba(255, 215, 94, 0.12)",
+                        color: c().textColor,
+                        padding: "1px 5px",
+                        "border-radius": "4px",
+                        "font-family": "ui-monospace, SFMono-Regular, Menlo, monospace",
+                        "font-size": "0.92em",
+                      }}
+                    >
+                      tools.opencode.models()
+                    </code>
+                  </span>
+                </div>
+              </div>
             </div>
-            <div style={buildMetaStyle(c())}>
-              click a line to copy
-            </div>
+            <div style={buildMetaStyle(c())}>click a line to copy</div>
           </div>
         </div>
       </div>
@@ -161,6 +200,76 @@ export function SettingsView(props: Props) {
             </button>
           )}
         </For>
+      </div>
+
+      {/* Translation Engine */}
+      <div style={sectionHeader}>Translation Engine</div>
+      <div style={cardStyle}>
+        <div style={fieldRow}>
+          <div style={labelStyle}>
+            <span>Engine Mode</span>
+            <span style={subLabelStyle}>
+              {c().engineMode === "auto" && "Auto (Smart): Google MT for phrases, Session LLM for lists & code"}
+              {c().engineMode === "fast" && "Fast MT Only: Always use Google / MyMemory (fastest, zero LLM usage)"}
+              {c().engineMode === "llm" && "Session LLM Only: Always translate using active session's model"}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: "6px" }}>
+            <button
+              type="button"
+              style={{
+                ...buttonStyle,
+                background: c().engineMode === "auto" ? "var(--background-action-primary, #2563eb)" : buttonStyle.background,
+                color: c().engineMode === "auto" ? "#ffffff" : buttonStyle.color,
+                "font-weight": c().engineMode === "auto" ? "600" : "normal",
+              }}
+              onClick={() => setEngine("auto")}
+            >
+              Auto (Smart)
+            </button>
+            <button
+              type="button"
+              style={{
+                ...buttonStyle,
+                background: c().engineMode === "fast" ? "var(--background-action-primary, #2563eb)" : buttonStyle.background,
+                color: c().engineMode === "fast" ? "#ffffff" : buttonStyle.color,
+                "font-weight": c().engineMode === "fast" ? "600" : "normal",
+              }}
+              onClick={() => setEngine("fast")}
+            >
+              Fast MT
+            </button>
+            <button
+              type="button"
+              style={{
+                ...buttonStyle,
+                background: c().engineMode === "llm" ? "var(--background-action-primary, #2563eb)" : buttonStyle.background,
+                color: c().engineMode === "llm" ? "#ffffff" : buttonStyle.color,
+                "font-weight": c().engineMode === "llm" ? "600" : "normal",
+              }}
+              onClick={() => setEngine("llm")}
+            >
+              Session LLM
+            </button>
+          </div>
+        </div>
+
+        <Show when={c().engineMode !== "fast"}>
+          <div style={fieldRow}>
+            <div style={labelStyle}>
+              <span>LLM Fallback Timeout ({(c().llmTimeoutMs / 1000).toFixed(1)}s)</span>
+              <span style={subLabelStyle}>Maximum wait time before falling back to Google Translate</span>
+            </div>
+            <input
+              type="range"
+              min="1500"
+              max="8000"
+              step="250"
+              value={c().llmTimeoutMs}
+              onInput={(e) => props.update({ llmTimeoutMs: Number(e.currentTarget.value) })}
+            />
+          </div>
+        </Show>
       </div>
 
       {/* Languages */}
@@ -329,6 +438,22 @@ export function SettingsView(props: Props) {
             onInput={(e) => props.update({ maxWidth: Number(e.currentTarget.value) })}
           />
         </div>
+
+        {/* Max Height */}
+        <div style={fieldRow}>
+          <div style={labelStyle}>
+            <span>Maximum Height ({c().maxHeight}px)</span>
+            <span style={subLabelStyle}>Maximum height before scrollbar appears for multi-line lists</span>
+          </div>
+          <input
+            type="range"
+            min="200"
+            max="700"
+            step="20"
+            value={c().maxHeight}
+            onInput={(e) => props.update({ maxHeight: Number(e.currentTarget.value) })}
+          />
+        </div>
       </div>
 
       {/* Behavior */}
@@ -359,7 +484,7 @@ export function SettingsView(props: Props) {
           <input
             type="range"
             min="200"
-            max="1500"
+            max="2500"
             step="50"
             value={c().maxChars}
             onInput={(e) => props.update({ maxChars: Number(e.currentTarget.value) })}

@@ -1,6 +1,16 @@
 import { Schema } from "effect"
 
+export const EngineModeSchema = Schema.Union([
+  Schema.Literal("auto"),
+  Schema.Literal("fast"),
+  Schema.Literal("llm"),
+])
+export type EngineMode = "auto" | "fast" | "llm"
+
 export const SettingsSchema = Schema.Struct({
+  engineMode: Schema.optional(EngineModeSchema),
+  llmTimeoutMs: Schema.optional(Schema.Number),
+  maxHeight: Schema.optional(Schema.Number),
   targets: Schema.String,
   clearance: Schema.Number,
   bgColor: Schema.String,
@@ -15,9 +25,30 @@ export const SettingsSchema = Schema.Struct({
   dropSourceLang: Schema.Boolean,
 })
 
-export type PluginSettings = typeof SettingsSchema.Type
+export type StoredSettings = typeof SettingsSchema.Type
+
+export interface PluginSettings {
+  engineMode: EngineMode
+  llmTimeoutMs: number
+  maxHeight: number
+  targets: string
+  clearance: number
+  bgColor: string
+  bgOpacity: number
+  textColor: string
+  accentColor: string
+  borderRadius: number
+  fontSize: number
+  maxWidth: number
+  debounceMs: number
+  maxChars: number
+  dropSourceLang: boolean
+}
 
 export const DEFAULT_SETTINGS: PluginSettings = {
+  engineMode: "auto",
+  llmTimeoutMs: 3500,
+  maxHeight: 420,
   targets: "ru, en",
   clearance: 52,
   bgColor: "#2b220a",
@@ -28,7 +59,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   fontSize: 12.5,
   maxWidth: 560,
   debounceMs: 140,
-  maxChars: 600,
+  maxChars: 1500,
   dropSourceLang: true,
 }
 

@@ -1,20 +1,19 @@
 /**
- * Translation backend, called from the Electron main process.
- *
- * Multi-tier translation pipeline:
- * 1. Google Translate `gtx` (primary)
- * 2. Google Translate `dict-chrome-ex` (backup Google client endpoint)
- * 3. MyMemory Translate API (independent fallback if Google is blocked/rate-limited)
- *
- * Source language is detected automatically, and targets matching the source
- * are omitted (e.g. Russian text shows only English).
+ * Translation backend with Smart Hybrid Routing:
+ * - Simple phrases -> Fast Multi-tier MT (Google gtx, dict-chrome-ex, MyMemory)
+ * - Complex/structured/code text -> Session LLM outside conversation history
+ * - Automatic fail-safe fallback to Token-Shielded MT if LLM times out or errors.
  */
 
 import { get as httpsGet } from "node:https"
+import { isComplexFormattedText } from "./detector.ts"
+import { shieldTokens, unshieldTokens } from "./shield.ts"
+import { translateWithLlm } from "./llm-engine.ts"
 
 export interface TransResult {
   lang: string
   text: string
+  engineUsed?: string
   error?: string
 }
 
@@ -25,12 +24,28 @@ export interface TransOutput {
 
 export type Log = (level: "debug" | "info" | "warn" | "error", message: string, data?: Record<string, unknown>) => void
 
+export interface TranslateOptions {
+  log?: Log
+  client?: any
+}
+
+export interface TranslateInputParams {
+  text: string
+  targets: readonly string[]
+  sessionID?: string
+  engineMode?: "auto" | "fast" | "llm"
+  llmTimeoutMs?: number
+}
+
 interface Entry {
   text: string
   detected: string
+  engineUsed?: string
 }
 
+const ENDPOINT = "https://translate.googleapis.com/translate_a/single"
 const CACHE_LIMIT = 500
+
 const cache = new Map<string, Entry>()
 
 function remember(key: string, value: Entry) {
@@ -43,15 +58,10 @@ function remember(key: string, value: Entry) {
 
 const USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko)"
 
-/** Perform an HTTP GET with User-Agent header, falling back to node:https. */
 async function requestJson(url: string, signal: AbortSignal): Promise<unknown> {
   if (signal.aborted) throw new Error("call aborted before the request")
 
-  const headers = {
-    accept: "application/json",
-    "user-agent": USER_AGENT,
-  }
-
+  const headers = { accept: "application/json", "user-agent": USER_AGENT }
   const implementation = globalThis.fetch
   if (typeof implementation === "function") {
     try {
@@ -59,8 +69,7 @@ async function requestJson(url: string, signal: AbortSignal): Promise<unknown> {
       if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`)
       return await response.json()
     } catch (error) {
-      if (signal.aborted) throw error
-      if (error instanceof Error && error.message.startsWith("HTTP ")) throw error
+      if (signal.aborted || (error instanceof Error && error.message.startsWith("HTTP "))) throw error
     }
   }
 
@@ -94,7 +103,6 @@ function viaHttps(url: string, signal: AbortSignal): Promise<unknown> {
   })
 }
 
-/** Decode common HTML entities that some translation APIs return. */
 function unescapeHtml(text: string): string {
   return text
     .replace(/&quot;/g, '"')
@@ -104,9 +112,8 @@ function unescapeHtml(text: string): string {
     .replace(/&amp;/g, "&")
 }
 
-/** Google Translate endpoint with specific client ID. */
-async function fetchGoogle(text: string, to: string, client: string, signal: AbortSignal): Promise<Entry> {
-  const url = `https://translate.googleapis.com/translate_a/single?client=${encodeURIComponent(client)}&sl=auto&tl=${encodeURIComponent(to)}&dt=t&q=${encodeURIComponent(text)}`
+async function fetchGoogle(text: string, to: string, clientName: string, signal: AbortSignal): Promise<Entry> {
+  const url = `${ENDPOINT}?client=${encodeURIComponent(clientName)}&sl=auto&tl=${encodeURIComponent(to)}&dt=t&q=${encodeURIComponent(text)}`
   const body = await requestJson(url, signal)
 
   const chunks = Array.isArray(body) ? (body[0] as unknown) : undefined
@@ -120,10 +127,9 @@ async function fetchGoogle(text: string, to: string, client: string, signal: Abo
   if (!translated) throw new Error("empty translation")
 
   const detected = Array.isArray(body) && typeof body[2] === "string" ? (body[2] as string) : ""
-  return { text: translated, detected }
+  return { text: translated, detected, engineUsed: clientName }
 }
 
-/** MyMemory API fallback (free, keyless alternative). */
 async function fetchMyMemory(text: string, to: string, signal: AbortSignal): Promise<Entry> {
   const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=autodetect|${encodeURIComponent(to)}`
   const body = (await requestJson(url, signal)) as Record<string, any>
@@ -133,17 +139,15 @@ async function fetchMyMemory(text: string, to: string, signal: AbortSignal): Pro
     throw new Error(body?.responseDetails || "MyMemory returned empty result")
   }
 
-  // Detect simple source language heuristic if detectedLanguage is provided
   const detected = typeof body?.matches?.[0]?.["source-language"] === "string"
     ? body.matches[0]["source-language"]
     : (/[а-яё]/i.test(text) ? "ru" : "en")
 
-  return { text: unescapeHtml(translated.trim()), detected }
+  return { text: unescapeHtml(translated.trim()), detected, engineUsed: "mymemory" }
 }
 
-/** Attempt translation via primary Google, secondary Google client, and MyMemory fallback. */
 async function translateWithFallback(text: string, to: string, signal: AbortSignal, log?: Log): Promise<Entry> {
-  const key = `${to}\u0000${text}`
+  const key = `mt\0${to}\0${text}`
   const hit = cache.get(key)
   if (hit !== undefined) return hit
 
@@ -182,19 +186,89 @@ function describe(reason: unknown): string {
 }
 
 export async function translate(
-  input: { text: string; targets: readonly string[] },
+  input: TranslateInputParams,
   signal: AbortSignal,
-  log?: Log,
+  options?: TranslateOptions,
 ): Promise<TransOutput> {
+  const log = options?.log
+  const client = options?.client
   const text = input.text.replace(/\r/g, "").trim()
   const targets = [...new Set(input.targets.map((lang) => lang.trim()).filter(Boolean))]
 
   if (!text) return { detected: "", results: [] }
 
-  log?.("info", "translate request", { chars: text.length, targets, aborted: signal.aborted })
+  const mode = input.engineMode ?? "auto"
+  const isComplex = isComplexFormattedText(text)
+  const shouldTryLlm = (mode === "llm" || (mode === "auto" && isComplex)) && !!input.sessionID && !!client
+
+  log?.("info", "translate request", {
+    chars: text.length,
+    targets,
+    mode,
+    isComplex,
+    shouldTryLlm,
+    hasSession: !!input.sessionID,
+  })
+
+  // ──────────────────────────── LLM Translation Path ────────────────────────────
+  if (shouldTryLlm) {
+    try {
+      const llmResults = await Promise.all(
+        targets.map(async (target) => {
+          const cacheKey = `llm\0${target}\0${text}`
+          const cached = cache.get(cacheKey)
+          if (cached) return cached
+
+          const res = await translateWithLlm(
+            {
+              text,
+              targetLang: target,
+              sessionID: input.sessionID!,
+              client,
+              timeoutMs: input.llmTimeoutMs ?? 3500,
+            },
+            signal,
+          )
+
+          const detected = /[а-яё]/i.test(text) ? "ru" : "en"
+          const entry: Entry = { text: res.text, detected, engineUsed: "llm" }
+          remember(cacheKey, entry)
+          return entry
+        }),
+      )
+
+      const detected = llmResults[0]?.detected || (/[а-яё]/i.test(text) ? "ru" : "en")
+      const results: TransResult[] = llmResults.map((entry, index) => ({
+        lang: targets[index] ?? "",
+        text: entry.text,
+        engineUsed: "llm",
+      }))
+
+      const source = detected.toLowerCase().split("-")[0]
+      const useful = source
+        ? results.filter((r) => r.lang.toLowerCase().split("-")[0] !== source || r.error)
+        : results
+
+      return { detected, results: useful.length > 0 ? useful : results }
+    } catch (llmError) {
+      log?.("warn", "LLM translation failed or timed out, falling back to MT pipeline", {
+        error: describe(llmError),
+      })
+      if (mode === "llm") {
+        // If explicitly in LLM-only mode, report the error rather than silent MT
+        return {
+          detected: "",
+          results: targets.map((lang) => ({ lang, text: "", error: describe(llmError) })),
+        }
+      }
+    }
+  }
+
+  // ──────────────────────── MT Pipeline (with Token Shielding) ───────────────────
+  const { shielded, tokens } = shieldTokens(text)
 
   const settled = await Promise.allSettled(
-    targets.map((lang) => translateWithFallback(text, lang, signal, log)),
+    targets.map((lang) => translateWithFallback(shielded, lang, signal, log)),
   )
 
   const failures = settled.filter((result) => result.status === "rejected")
@@ -212,12 +286,13 @@ export async function translate(
 
   const results: TransResult[] = settled.map((result, index) => {
     const lang = targets[index] ?? ""
-    if (result.status === "fulfilled") return { lang, text: result.value.text }
+    if (result.status === "fulfilled") {
+      const unshielded = unshieldTokens(result.value.text, tokens)
+      return { lang, text: unshielded, engineUsed: result.value.engineUsed }
+    }
     return { lang, text: "", error: describe(result.reason) }
   })
 
-  // A target equal to the source adds nothing. Keep it only when dropping it would
-  // leave the popup empty, so the user always sees something.
   const source = detected.toLowerCase().split("-")[0]
   const useful = source
     ? results.filter((result) => result.lang.toLowerCase().split("-")[0] !== source || result.error)

@@ -2,6 +2,7 @@ import { For, Show, createSignal, onCleanup, onMount } from "solid-js"
 import { Portal } from "solid-js/web"
 import type { TranslateOutput } from "./contract"
 import type { PluginSettings } from "./settings"
+import { FormattedText } from "./formatter-view"
 
 export interface Labels {
   loading: string
@@ -45,6 +46,9 @@ export function buildShellStyle(view: View | { left: number; top?: number; botto
     ...(view.bottom !== undefined ? { bottom: `${view.bottom}px` } : { top: `${view.top ?? 0}px` }),
     "z-index": "2147483000",
     "max-width": `${settings.maxWidth}px`,
+    "max-height": `${settings.maxHeight || 420}px`,
+    "overflow-y": "auto",
+    "box-sizing": "border-box",
     "min-width": "220px",
     padding: "7px 10px 8px",
     "border-radius": `${settings.borderRadius}px`,
@@ -66,6 +70,9 @@ export function buildPreviewShellStyle(settings: PluginSettings): Record<string,
     position: "relative",
     width: "100%",
     "max-width": `${settings.maxWidth}px`,
+    "max-height": `${settings.maxHeight || 420}px`,
+    "overflow-y": "auto",
+    "box-sizing": "border-box",
     "min-width": "220px",
     padding: "7px 10px 8px",
     "border-radius": `${settings.borderRadius}px`,
@@ -77,7 +84,6 @@ export function buildPreviewShellStyle(settings: PluginSettings): Record<string,
     "pointer-events": "auto",
     "user-select": "text",
     cursor: "default",
-    "box-sizing": "border-box",
   }
 }
 
@@ -133,8 +139,15 @@ function isEditable(node: Node | null): boolean {
 export function SelectionPopup(props: {
   settings: () => PluginSettings
   labels: Labels
-  translate(input: { text: string; targets: readonly string[] }): Promise<TranslateOutput>
+  translate(input: {
+    text: string
+    targets: readonly string[]
+    sessionID?: string
+    engineMode?: "auto" | "fast" | "llm"
+    llmTimeoutMs?: number
+  }): Promise<TranslateOutput>
   copy(text: string): void
+  currentSessionId?(): string | undefined
   debug?(message: string): void
 }) {
   const [view, setView] = createSignal<View | null>(null)
@@ -170,16 +183,25 @@ export function SelectionPopup(props: {
     setCopied(false)
     setView({ ...place, text, truncated, results: [], detected: "", loading: true })
 
-    const targets = cfg()
-      .targets.split(/[,;\s]+/)
+    const currentCfg = cfg()
+    const targets = currentCfg.targets
+      .split(/[,;\s]+/)
       .map((t) => t.trim().toLowerCase())
       .filter(Boolean)
 
     try {
-      const output = await props.translate({ text, targets: targets.length > 0 ? targets : ["ru", "en"] })
+      const output = await props.translate({
+        text,
+        targets: targets.length > 0 ? targets : ["ru", "en"],
+        sessionID: props.currentSessionId?.(),
+        engineMode: currentCfg.engineMode,
+        llmTimeoutMs: currentCfg.llmTimeoutMs,
+      })
       if (id !== sequence) return
 
-      props.debug?.(`translate: ${output.detected || "?"} -> ${output.results.map((item) => item.lang).join(",")}`)
+      props.debug?.(
+        `translate: ${output.detected || "?"} -> ${output.results.map((item) => `${item.lang}(${item.engineUsed || "mt"})`).join(",")}`,
+      )
 
       setView({
         ...place,
@@ -219,7 +241,12 @@ export function SelectionPopup(props: {
       return
     }
 
-    const raw = selection.toString().replace(/\s+/g, " ").trim()
+    // Preserve newlines so structured lists, bullets, and blocks retain formatting!
+    const raw = selection
+      .toString()
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n")
+      .trim()
     if (raw.length < 2) return
 
     const rect = selection.getRangeAt(0).getBoundingClientRect()
@@ -339,10 +366,37 @@ export function SelectionPopup(props: {
                           setCopied(true)
                         }}
                       >
-                        <span style={buildLangTagStyle(c)}>{result.lang}</span>
-                        <span style={result.error ? { ...buildTextStyle(c), color: "#f0a35e" } : buildTextStyle(c)}>
-                          {result.error ? `${props.labels.failed}: ${result.error}` : result.text}
-                        </span>
+                        <div style={{ display: "flex", "flex-direction": "column", "align-items": "center", gap: "3px" }}>
+                          <span style={buildLangTagStyle(c)}>{result.lang}</span>
+                          <Show when={result.engineUsed === "llm"}>
+                            <span
+                              style={{
+                                "font-size": "8px",
+                                "font-weight": "700",
+                                padding: "0 3px",
+                                "border-radius": "3px",
+                                background: "rgba(255, 215, 94, 0.16)",
+                                color: c.accentColor,
+                                "letter-spacing": "0.05em",
+                                "line-height": "1.2",
+                              }}
+                            >
+                              LLM
+                            </span>
+                          </Show>
+                        </div>
+                        <div style={{ flex: 1, "min-width": 0 }}>
+                          <Show
+                            when={!result.error}
+                            fallback={
+                              <span style={{ ...buildTextStyle(c), color: "#f0a35e" }}>
+                                {props.labels.failed}: {result.error}
+                              </span>
+                            }
+                          >
+                            <FormattedText text={result.text} settings={c} />
+                          </Show>
+                        </div>
                       </div>
                     )}
                   </For>

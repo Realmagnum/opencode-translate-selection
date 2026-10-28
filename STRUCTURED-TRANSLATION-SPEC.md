@@ -1,7 +1,7 @@
 # Спецификация: Гибридный структурированный перевод с автовыбором LLM и MT (Smart Hybrid Translation)
 
 > **Проект**: `opencode-translate-selection`  
-> **Статус**: План-спецификация к реализации (Approved Architecture)  
+> **Статус**: Реализовано (Implemented, v0.2.0)  
 > **Версия документа**: 2.0 (Hybrid LLM + Multi-tier MT)  
 > **Дата**: 2026-10-28  
 

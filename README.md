@@ -18,14 +18,12 @@ Select text anywhere in the session timeline or side panels, and a floating tran
 - **Bilingual & smart filtering**: Automatically detects the source language. Translates into your configured target languages (`RU` and `EN` by default) and drops the language matching the source (e.g. selecting English text shows only the Russian translation).
 - **High-contrast warm dark theme**: Deep olive background (`rgba(43, 34, 10, 0.97)`), bright yellow translation text (`#ffd75e`), and golden language badges (`#c9a83f`).
 - **One-click copy**: Click on any translated line to copy it directly to your clipboard.
-- **Multi-tier fallback engine**:
-  1. **Google Translate (Primary)** via `gtx` endpoint.
-  2. **Google Translate (Secondary client)** via `dict-chrome-ex` if primary is rate-limited.
-  3. **MyMemory Translate API (Fallback)** if Google services are unavailable or blocked.
+- **Smart Hybrid Translation**: Simple words and phrases are translated instantly via Google Translate (~100ms). Complex multi-line structures (bullet lists, numbered steps, code blocks, parameter objects, and function calls like `tools.opencode.models()`) automatically route to the **active session's LLM** outside conversation history, preserving layout and code identifiers symbol-for-symbol.
+- **Fail-safe Fallback with Token Shielding**: If the LLM times out or is busy, requests seamlessly fall back to the multi-tier MT pipeline with mathematical token shielding (`⟦0⟧`) protecting code and identifiers.
+- **Multi-tier MT engine**: Google Translate (`gtx` + `dict-chrome-ex`) with MyMemory API fallback.
 - **In-memory LRU cache**: Keeps up to 500 recent translations in memory for instant lookups with zero network overhead.
-- **Dedicated GUI Settings**: Full-featured settings page (`/settings?tab=translate`) with an embedded Live Preview, 5 color presets, sliders, and color pickers.
-- **Structured Formatting Roadmap**: Comprehensive specification in [STRUCTURED-TRANSLATION-SPEC.md](STRUCTURED-TRANSLATION-SPEC.md) for preserving bullet lists, numbered steps, headings, and shielded inline code.
-- **Zero runtime footprint**: Built as an ultra-compact single file bundle (`24 KB` unminified / `8.5 KB` gzip) running in OpenCode's SolidJS environment.
+- **Dedicated GUI Settings**: Full-featured settings page (`/settings?tab=translate`) with an embedded Live Preview, Engine Mode selector (Auto / Fast MT / Session LLM), LLM timeout slider, 5 color presets, and geometry controls.
+- **Zero runtime footprint**: Built as an ultra-compact single file bundle (`37 KB` unminified / `12 KB` gzip) running in OpenCode's SolidJS environment.
 
 ---
 
@@ -126,9 +124,8 @@ flowchart TD
 
 ---
 
-## ⚠️ Known Limitations & Roadmap
+## ⚠️ Known Limitations
 
-- **Structured lists & code blocks (Specification Ready)**: Currently, multi-line selections are normalized to single-paragraph text for fast MT processing. Full structured formatting preservation (bullet lists, numbered lists, headings, and token-shielded inline code like `tools.opencode.models()`) is fully specified in [STRUCTURED-TRANSLATION-SPEC.md](STRUCTURED-TRANSLATION-SPEC.md) and scheduled for the next release.
 - **DOM text only**: Works across the chat timeline, tool cards, markdown messages, and sidebar panels. Does **not** work on text inside the integrated terminal, because the terminal renders to an HTML5 canvas (ghostty-web) where text selection does not produce DOM nodes.
 - **Input fields**: Text selection inside textareas, inputs, or the prompt composer is intentionally ignored to avoid interfering with typing.
 
@@ -138,13 +135,14 @@ flowchart TD
 
 ```bash
 npm run typecheck   # Typecheck TypeScript against @opencode/plugin
+npm test            # Run unit tests (detector, shield, formatter, llm-engine)
 npm run build       # Build dist/gui-experimental.cjs (Vite + Solid)
 npm run watch       # Watch & rebuild on changes (auto-reloads GUI in OpenCode)
 ```
 
 ### Why is `node_modules` so large?
 
-`node_modules` (~200 dependencies) contains **only build-time tools** (`vite`, `esbuild`, `rollup`, `typescript`, `@babel/*` for JSX). When built, the entire plugin compiles into **a single compact bundle** (`dist/gui-experimental.cjs`, ~24 KB / 8.5 KB gzip). In OpenCode Desktop at runtime, **none** of `node_modules` is loaded or used; SolidJS and Effect are provided by OpenCode itself.
+`node_modules` (~200 dependencies) contains **only build-time tools** (`vite`, `esbuild`, `rollup`, `typescript`, `@babel/*` for JSX). When built, the entire plugin compiles into **a single compact bundle** (`dist/gui-experimental.cjs`, ~37 KB / 12 KB gzip). In OpenCode Desktop at runtime, **none** of `node_modules` is loaded or used; SolidJS and Effect are provided by OpenCode itself.
 
 ---
 
