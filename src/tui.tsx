@@ -136,7 +136,7 @@ function TranslationModal(props: {
   }))
 
   const termHeight = props.context.renderer?.terminalHeight || 30
-  const modalHeight = Math.max(12, Math.min(26, Math.floor(termHeight * 0.75)))
+  const modalHeight = Math.max(10, Math.min(24, Math.floor(termHeight * 0.75)))
 
   return (
     <box
@@ -145,15 +145,18 @@ function TranslationModal(props: {
       height={modalHeight}
       paddingLeft={2}
       paddingRight={2}
-      paddingTop={1}
       paddingBottom={1}
-      backgroundColor={theme().background?.raised?.base ?? "#1c1c1c"}
-      borderStyle="rounded"
-      borderColor={theme().border?.base ?? "#475569"}
     >
       {/* Header */}
-      <box flexDirection="row" justifyContent="space-between" paddingBottom={1} border={["bottom"]} borderColor={theme().border?.base ?? "#334155"}>
-        <box flexDirection="row" gap={1}>
+      <box
+        flexDirection="row"
+        justifyContent="space-between"
+        alignItems="center"
+        paddingBottom={1}
+        border={["bottom"]}
+        borderColor={theme().border?.base ?? "#334155"}
+      >
+        <box flexDirection="row" gap={1} alignItems="center">
           <text fg="#ffd75e">{"🌐 ПЕРЕВОД"}</text>
           <text fg="#38bdf8">{`[${detected} → ${targetLangs}]`}</text>
         </box>
@@ -173,8 +176,8 @@ function TranslationModal(props: {
           <box flexDirection="column" gap={1}>
             <For each={props.output.results}>
               {(res) => (
-                <box flexDirection="column" gap={1} paddingBottom={1}>
-                  <box flexDirection="row" gap={1}>
+                <box flexDirection="column" gap={0} paddingBottom={1}>
+                  <box flexDirection="row" gap={1} alignItems="center">
                     <text fg="#38bdf8">{`[${res.lang.toUpperCase()}]`}</text>
                     <Show when={res.engineUsed === "llm"}>
                       <text fg="#a3e635">{"• LLM"}</text>
@@ -194,10 +197,21 @@ function TranslationModal(props: {
       </box>
 
       {/* Footer Controls */}
-      <box flexDirection="row" justifyContent="space-between" paddingTop={1} border={["top"]} borderColor={theme().border?.base ?? "#334155"}>
-        <text fg={theme().text?.subdued ?? "#94a3b8"}>
-          {"[y] Копия  [Enter] Копия+Закрыть  [p] В панель  [↑/↓] Скролл  [q] Закрыть"}
-        </text>
+      <box
+        flexDirection="row"
+        justifyContent="space-between"
+        alignItems="center"
+        paddingTop={1}
+        border={["top"]}
+        borderColor={theme().border?.base ?? "#334155"}
+      >
+        <box flexDirection="row" flexWrap="wrap" columnGap={1}>
+          <text fg={theme().text?.subdued ?? "#94a3b8"}>{"[y] Копия"}</text>
+          <text fg={theme().text?.subdued ?? "#94a3b8"}>{"[Enter] Копия+Закрыть"}</text>
+          <text fg={theme().text?.subdued ?? "#94a3b8"}>{"[p] В панель"}</text>
+          <text fg={theme().text?.subdued ?? "#94a3b8"}>{"[↑/↓] Скролл"}</text>
+          <text fg={theme().text?.subdued ?? "#94a3b8"}>{"[q] Закрыть"}</text>
+        </box>
         <Show when={copied()}>
           <text fg="#10b981">{"✓ Скопировано!"}</text>
         </Show>
@@ -341,17 +355,28 @@ function TranslationPanel(props: {
       onMouseUp={() => props.panel.focus()}
     >
       {/* Header */}
-      <box flexDirection="row" justifyContent="space-between" paddingBottom={1} border={["bottom"]} borderColor={theme().border?.base ?? "#334155"}>
-        <box flexDirection="row" gap={1}>
-          <text fg="#ffd75e">{"🌐 ПЕРЕВОД"}</text>
+      <box
+        flexDirection="column"
+        paddingBottom={1}
+        border={["bottom"]}
+        borderColor={theme().border?.base ?? "#334155"}
+        gap={0}
+      >
+        <box flexDirection="row" justifyContent="space-between" alignItems="center">
+          <box flexDirection="row" gap={1} alignItems="center">
+            <text fg="#ffd75e">{"🌐"}</text>
+            <text fg="#ffd75e">{"ПЕРЕВОД"}</text>
+          </box>
+          <Show
+            when={props.panel.focused}
+            fallback={<text fg="#f59e0b">{"(фокус)"}</text>}
+          >
+            <text fg="#10b981">{"[фокус]"}</text>
+          </Show>
+        </box>
+        <box flexDirection="row" gap={1} paddingTop={0} alignItems="center">
           <text fg="#38bdf8">{`[${modeBadge()} | ${targetsBadge()}]`}</text>
         </box>
-        <Show
-          when={props.panel.focused}
-          fallback={<text fg="#f59e0b">{"(клик для фокуса)"}</text>}
-        >
-          <text fg="#10b981">{"[фокус]"}</text>
-        </Show>
       </box>
 
       {/* Status Notifications */}
@@ -394,21 +419,49 @@ function TranslationPanel(props: {
               <Show when={props.latest.source}>
                 <text fg="#64748b">{`Источник: ${props.latest.source}`}</text>
               </Show>
-              <text wrapMode="word" fg={theme().text?.default ?? "#f8fafc"}>
-                {formattedOutput()}
-              </text>
+              <For each={props.latest.output!.results}>
+                {(res) => (
+                  <box flexDirection="column" gap={0} paddingBottom={1}>
+                    <box flexDirection="row" gap={1} alignItems="center">
+                      <text fg="#38bdf8">{`[${res.lang.toUpperCase()}]`}</text>
+                      <Show when={res.engineUsed === "llm"}>
+                        <text fg="#a3e635">{"• LLM"}</text>
+                      </Show>
+                      <Show when={res.error}>
+                        <text fg="#ef4444">{`(Ошибка: ${res.error})`}</text>
+                      </Show>
+                    </box>
+                    <text wrapMode="word" fg={theme().text?.default ?? "#f8fafc"}>
+                      {res.text || "(пустой перевод)"}
+                    </text>
+                  </box>
+                )}
+              </For>
             </box>
           </Show>
         </scrollbox>
       </box>
 
       {/* Footer Hotkey Legend */}
-      <box flexDirection="row" paddingTop={1} border={["top"]} borderColor={theme().border?.base ?? "#334155"} justifyContent="space-between">
-        <text fg={theme().text?.subdued ?? "#94a3b8"}>
-          {"[t] Буфер  [l] Ответ  [y] Копия  [m] Режим  [f] Экран  [q] Закрыть"}
-        </text>
+      <box
+        flexDirection="column"
+        paddingTop={1}
+        border={["top"]}
+        borderColor={theme().border?.base ?? "#334155"}
+        gap={0}
+      >
+        <box flexDirection="row" flexWrap="wrap" columnGap={1} rowGap={0}>
+          <text fg={theme().text?.subdued ?? "#94a3b8"}>{"[t] Буфер"}</text>
+          <text fg={theme().text?.subdued ?? "#94a3b8"}>{"[l] Ответ"}</text>
+          <text fg={theme().text?.subdued ?? "#94a3b8"}>{"[y] Копия"}</text>
+          <text fg={theme().text?.subdued ?? "#94a3b8"}>{"[m] Режим"}</text>
+          <text fg={theme().text?.subdued ?? "#94a3b8"}>{"[f] Экран"}</text>
+          <text fg={theme().text?.subdued ?? "#94a3b8"}>{"[q] Выход"}</text>
+        </box>
         <Show when={props.latest.lastCopied}>
-          <text fg="#10b981">{"✓ Скопировано!"}</text>
+          <box paddingTop={0}>
+            <text fg="#10b981">{"✓ Перевод скопирован в буфер!"}</text>
+          </box>
         </Show>
       </box>
     </box>

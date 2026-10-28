@@ -10,16 +10,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.0] - 2026-10-28
 
 ### Added
-- **Full OpenCode Terminal (TUI) Support (`./tui`)**:
-  - Implemented TUI plugin adapter utilizing OpenTUI (`@opentui/solid` and `@opentui/core`).
-  - **Clipboard Translation**: Press `<leader>t` (or `/translate [text]`) to immediately translate clipboard contents with fallback to interactive prompt.
-  - **Last Assistant Turn Translation**: Press `<leader>tl` (or `/translate-last`) to fetch and translate the last assistant message in the active session without touching chat context.
-  - **Interactive Side Panel (`session.panel`)**: Press `<leader>tp` (or `/translate-panel`) to toggle a dedicated side panel with real-time translation viewer, engine mode badge, and quick keyboard shortcuts (`t`, `l`, `y`, `m`, `f`, `q`).
-  - **TUI Settings Command**: `/translate-config` allows interactive switching of target languages and engine mode directly in the terminal, persisted with `context.storage.store`.
-  - **Cross-platform Clipboard Integration**: Asynchronous, non-blocking clipboard read/write supporting macOS (`pbpaste`/`pbcopy`), Linux (`wl-paste`/`wl-copy`, `xclip`, `xsel`), and Windows (`powershell`).
-  - **Interactive Result Dialogs**: Rich selection dialog offering one-click copy (`y` / `Enter`) and panel redirection.
-- **Unit Tests**:
-  - Added unit test cases for assistant message extraction and markdown output formatting (total 20 unit tests).
+- **First-Class OpenCode Terminal (TUI) Support (`./tui`)**:
+  - Full-featured TUI plugin adapter utilizing OpenTUI (`@opentui/solid` and `@opentui/core`).
+  - **Conflict-Free Keybindings & Commands**:
+    - `Alt+T` / `/translate [text]` (alias: `/tr`): Instantly translate clipboard text or custom input.
+    - `Alt+Shift+T` / `/translate-last` (alias: `/trl`): Translate the last assistant turn in current session.
+    - `Alt+P` / `/translate-panel` (alias: `/trp`): Toggle persistent translation side panel (`session.panel`).
+    - `/translate-config`: Interactive TUI configuration dialog for target languages and engine modes.
+  - **Scrollable Multiline Translation Modal (`TranslationModal`)**:
+    - Centered high-contrast modal dialog replacing single-line selectors.
+    - Full word wrapping (`wrapMode="word"`) displaying extensive multi-paragraph translations and code blocks without truncation.
+    - Dedicated scroll container (`<scrollbox>`) with keyboard scrolling (`↑`/`↓`, `j`/`k`, `PageUp`/`PageDown`).
+    - Quick actions: `y` (copy to clipboard), `Enter` (copy and close), `p` (open in side panel), `q` / `Esc` (dismiss).
+  - **Seamless In-Place Side Panel Updates**:
+    - When the side panel is open, pressing `Alt+T` or `Alt+Shift+T` updates the translation in-place inside the panel without opening popup dialogs.
+    - Displays non-intrusive confirmation toast (`✓ Перевод обновлён в панели`).
+  - **Interactive Side Panel (`session.panel`)**:
+    - Real-time translation viewer with word wrap and persistent scrolling.
+    - Visual focus tracking indicator (`[фокус]` / `(клик для фокуса)`).
+    - Quick hotkeys when focused:
+      - `t`: Translate current clipboard.
+      - `l`: Translate last assistant response.
+      - `y`: Copy Markdown translation to clipboard.
+      - `m`: Cycle engine mode on the fly (`AUTO` ⇄ `FAST` ⇄ `LLM`).
+      - `f`: Toggle full-screen panel presentation.
+      - `q` / `Esc`: Close side panel.
+  - **Interactive TUI Configuration (`/translate-config`)**:
+    - Select target languages (e.g. `ru, en` or custom comma-separated list).
+    - Switch engine mode (`AUTO` / `FAST` / `LLM`).
+    - Reset settings to defaults with durable persistence via `context.storage.store`.
+  - **Cross-Platform Clipboard Engine**:
+    - Asynchronous, non-blocking clipboard read/write supporting macOS (`pbpaste`/`pbcopy`), Linux Wayland (`wl-paste`/`wl-copy`), Linux X11 (`xclip`, `xsel`), Windows (`powershell`), and terminal OSC 52.
+  - **Dedicated TUI Build Pipeline**:
+    - Added `build-tui.mjs` compiling OpenTUI Solid components into `dist/tui.js` using esbuild + universal Babel Solid transform for runtime compatibility in Node and Bun.
+- **Unit Test Suite Expansion**:
+  - Added unit test cases for assistant message extraction and markdown output formatting (total 20 unit tests, 100% passing).
 
 ---
 

@@ -21,8 +21,8 @@
 
 > [!IMPORTANT]
 > **Requires OpenCode v2.2.0 or newer**.
-> - **In OpenCode Desktop**: Provides a floating translation tooltip on mouse selection directly above the native **Quote** toolbar.
-> - **In OpenCode TUI / Terminal**: Provides leader keybinds (`<leader>t`, `<leader>tl`, `<leader>tp`), slash commands (`/translate`), an interactive translation side panel, and instant clipboard support.
+> - **In OpenCode Desktop**: Provides an instant floating translation tooltip on text selection directly above the native **Quote** toolbar.
+> - **In OpenCode TUI / Terminal**: Provides conflict-free hotkeys (`Alt+T`, `Alt+Shift+T`, `Alt+P`), slash commands (`/translate`, `/translate-last`, `/translate-panel`, `/translate-config`), a scrollable multiline translation modal, an interactive side panel (`session.panel`), and seamless clipboard integration.
 
 ---
 
@@ -88,28 +88,75 @@ npm run build
 
 ## 💻 Terminal (TUI) Usage
 
-When running OpenCode in your terminal (`opencode`), the plugin automatically activates its TUI component with zero configuration required.
+When running OpenCode in your terminal (`opencode`), the plugin automatically activates its first-class TUI module powered by OpenTUI (`@opentui/solid` & `@opentui/core`) with zero configuration required.
 
-### ⌨️ Keybindings & Commands
+### ⌨️ Keybindings & Slash Commands
+
+All hotkeys are conflict-free and don't clash with OpenCode's native keys:
 
 | Keybind | Command / Slash | Description |
 |---|---|---|
-| `alt+t` | `/translate [text]` (or `/tr`) | **Translate clipboard text** (or custom prompt if empty / argument passed). Shows an interactive popup dialog with quick copy. |
-| `alt+shift+t` | `/translate-last` (or `/trl`) | **Translate last assistant message** from current session without cluttering chat history. |
-| `alt+p` | `/translate-panel` (or `/trp`) | **Toggle side panel** (`session.panel`) for persistent side-by-side translation reading. |
-| — | `/translate-config` | Open interactive TUI settings (target languages, engine mode: Auto / Fast MT / LLM). |
+| `Alt+T` | `/translate [text]` (alias: `/tr`) | **Translate clipboard text** (or custom prompt if clipboard is empty). If the side panel is open, updates the panel in-place; otherwise opens a scrollable modal dialog. |
+| `Alt+Shift+T` | `/translate-last` (alias: `/trl`) | **Translate last assistant message** from active session. Out-of-band translation with zero session history pollution. |
+| `Alt+P` | `/translate-panel` (alias: `/trp`) | **Toggle side panel** (`session.panel`) for persistent side-by-side reading. |
+| — | `/translate-config` | Open interactive TUI settings (target languages, engine mode: `AUTO` / `FAST` / `LLM`). |
 
-*(All commands are also accessible from the command palette via `Ctrl+P`).*
+*(All commands are also discoverable in the command palette via `Ctrl+P`).*
 
-### 📑 Interactive Side Panel Features
+---
 
-When the translation panel is open (`alt+p` or `/translate-panel`), it receives keyboard shortcuts directly when focused:
-- `t`: Translate current clipboard text
-- `l`: Translate last assistant turn in current session
-- `y`: Copy current formatted Markdown translation to clipboard
-- `m`: Cycle engine mode (`AUTO` → `FAST` → `LLM` → `AUTO`)
-- `f`: Toggle panel full-screen view
-- `q` or `Esc`: Close the panel
+### 🪟 Scrollable Multiline Translation Modal
+
+When the side panel is closed, pressing `Alt+T` opens a centered, high-contrast modal dialog:
+
+- **Full Multiline Text & Word Wrapping**: Unlike standard one-line menus, translations render with complete word wrapping (`wrapMode="word"`). Long paragraphs, code snippets, and lists are displayed without truncation.
+- **Smooth Keyboard & Mouse Scrolling**: Dedicated `<scrollbox>` navigable via `↑`/`↓`, `j`/`k`, `PageUp`/`PageDown`, or mouse wheel.
+- **One-Click Actions**:
+  - `y`: Copy translation to system clipboard.
+  - `Enter`: Copy translation to clipboard and immediately dismiss the modal.
+  - `p`: Transfer current translation into the persistent side panel and close the modal.
+  - `q` / `Esc`: Dismiss the modal.
+
+---
+
+### 📑 Persistent Side Panel (`session.panel`)
+
+Press `Alt+P` or run `/translate-panel` to open a persistent translation sidebar alongside your active chat session.
+
+#### 🔄 Seamless In-Place Updates
+When the side panel is already open, pressing `Alt+T` (clipboard) or `Alt+Shift+T` (last turn) **never spawns popup dialogs**. It seamlessly translates the text and **reactively updates the translation in-place inside the panel**, accompanied by a subtle confirmation toast (`✓ Перевод обновлён в панели`).
+
+#### 🎮 Panel Hotkeys & Focus Control
+When the panel has focus (indicated by a green `[фокус]` badge in the top right; click anywhere in the panel to focus):
+- **`t`**: Translate current clipboard contents.
+- **`l`**: Translate the last assistant message.
+- **`y`**: Copy full formatted Markdown translation to clipboard.
+- **`m`**: Cycle engine mode on the fly (`AUTO` ⇄ `FAST` ⇄ `LLM`).
+- **`f`**: Toggle full-screen mode (expands panel across the entire terminal for reading lengthy documentation).
+- **`q`** or **`Esc`**: Close the side panel.
+- **`↑`/`↓`, `j`/`k`, `PageUp`/`PageDown`**: Scroll through translation text.
+
+---
+
+### ⚙️ Interactive TUI Configuration (`/translate-config`)
+
+Run `/translate-config` inside any terminal session to configure settings stored durably via `context.storage.store`:
+1. **Target Languages**: Edit comma-separated ISO language codes (e.g. `ru, en` or a single target like `ru`).
+2. **Engine Mode**:
+   - `Auto (Smart Hybrid)`: Fast Google MT (~100ms) for single words/phrases; Session LLM for structured lists and code.
+   - `Fast MT Only`: 100% Google Translate / MyMemory with zero token usage.
+   - `Session LLM Only`: Always translate using the session's active model.
+3. **Reset to Defaults**: Quickly restore default preferences.
+
+---
+
+### 📋 Cross-Platform Clipboard Integration
+
+Translations can be copied and pasted seamlessly regardless of your operating system:
+- **macOS**: Native `pbpaste` / `pbcopy`.
+- **Linux**: Automatic detection of Wayland (`wl-paste` / `wl-copy`) and X11 (`xclip` / `xsel`).
+- **Windows**: PowerShell clipboard interoperability.
+- **OSC 52**: Terminal escape sequence fallback for remote SSH sessions.
 
 ---
 
