@@ -1,6 +1,6 @@
 {
   "name": "opencode-translate-selection",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Instant inline translation tooltip for OpenCode Desktop (v2.2.0+) and Terminal TUI (hotkeys, last turn, side panel) with Smart Hybrid LLM/MT routing across all languages",
   "author": "Realmagnum",
   "license": "MIT",

@@ -849,8 +849,8 @@ export default Plugin.define({
         const input = await context.ui.dialog.prompt({
           title: tuiText("Целевые языки", "Target Languages"),
           description: tuiText(
-            "Введите ISO-коды языков через запятую (например: ru, en, de, zh)",
-            "Enter comma-separated ISO language codes (e.g.: ru, en, de, zh)",
+            "Введите ISO-коды языков через запятую (например: ru, en, de, zh). Список кодов ISO 639-1: https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes",
+            "Enter comma-separated ISO language codes (e.g.: ru, en, de, zh). ISO 639-1 code list: https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes",
           ),
           value: settings.targets,
         })

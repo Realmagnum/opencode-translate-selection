@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.3] - 2026-10-29
+
+### Added
+- **ISO 639-1 Language Code Reference Link**:
+  - Added a convenient external link in the Settings page (`Target Languages` card) directing users to the standardized list of two-letter language codes (e.g. `ru`, `en`, `fr`, `de`, `es`, `zh`, `ja`, etc.).
+  - The link dynamically opens the native language Wikipedia article corresponding to the user's interface language (e.g. Russian Wikipedia for `ru`, English for `en`, German for `de`, etc.) via `ctx.system.openExternal`.
+  - Added reference link to the TUI `/translate-config` target languages prompt description.
+
+---
+
 ## [0.3.2] - 2026-10-28
 
 ### Added

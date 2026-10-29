@@ -58,6 +58,7 @@ function TranslationSurface(props: {
 function SettingsTab(props: {
   store: Persisted<StoredSettings>
   client: ReturnType<any>
+  system: any
   t: (key: string, params?: TranslationParams) => string
   locale?: () => string
 }) {
@@ -126,6 +127,13 @@ function SettingsTab(props: {
       reset={reset}
       t={props.t}
       locale={props.locale}
+      openExternal={(url) => {
+        if (props.system?.openExternal) {
+          props.system.openExternal(url)
+        } else {
+          window.open(url, "_blank", "noopener,noreferrer")
+        }
+      }}
     />
   )
 }
@@ -161,6 +169,7 @@ export default Plugin.define({
         <SettingsTab
           store={ctx.stores.settings}
           client={client}
+          system={ctx.system}
           t={(k, p) => ctx.t(k, p)}
           locale={() => ctx.locale.locale()}
         />

@@ -70,6 +70,25 @@ test("i18n: resolveTranslation interpolates template parameters", () => {
   )
 })
 
+test("i18n: resolveTranslation resolves language codes link and URL per language", () => {
+  assert.equal(
+    resolveTranslation("ru", "settings.languages.codesLink.text"),
+    "Список двухбуквенных кодов языков (ISO 639-1)",
+  )
+  assert.equal(
+    resolveTranslation("ru", "settings.languages.codesLink.url"),
+    "https://ru.wikipedia.org/wiki/Список_кодов_ISO_639-1",
+  )
+  assert.equal(
+    resolveTranslation("en", "settings.languages.codesLink.text"),
+    "List of ISO 639-1 language codes",
+  )
+  assert.equal(
+    resolveTranslation("en", "settings.languages.codesLink.url"),
+    "https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes",
+  )
+})
+
 test("i18n: resolveTranslation falls back to English when language is unknown", () => {
   assert.equal(
     resolveTranslation("unknown_lang", "settings.title"),

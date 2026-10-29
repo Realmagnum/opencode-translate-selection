@@ -45,6 +45,8 @@ export const I18N_EN = {
   "settings.languages.title": "Languages",
   "settings.languages.targets.label": "Target Languages",
   "settings.languages.targets.desc": "Comma-separated ISO language codes (e.g. ru, en, de, fr, es, zh)",
+  "settings.languages.codesLink.text": "List of ISO 639-1 language codes",
+  "settings.languages.codesLink.url": "https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes",
 
   // Colors & Style
   "settings.appearance.title": "Colors & Style",
@@ -142,6 +144,8 @@ export const I18N_RU: Record<I18nKey, string> = {
   "settings.languages.title": "Языки",
   "settings.languages.targets.label": "Целевые языки",
   "settings.languages.targets.desc": "Коды языков ISO через запятую (например: ru, en, de, fr, es, zh)",
+  "settings.languages.codesLink.text": "Список двухбуквенных кодов языков (ISO 639-1)",
+  "settings.languages.codesLink.url": "https://ru.wikipedia.org/wiki/Список_кодов_ISO_639-1",
 
   // Colors & Style
   "settings.appearance.title": "Цвета и оформление",
@@ -231,6 +235,8 @@ export const I18N_ZH: Record<I18nKey, string> = {
   "settings.languages.title": "语言",
   "settings.languages.targets.label": "目标语言",
   "settings.languages.targets.desc": "逗号分隔的 ISO 语言代码（例如：zh, en, ru, de, fr, es, ja）",
+  "settings.languages.codesLink.text": "ISO 639-1 语言代码列表",
+  "settings.languages.codesLink.url": "https://zh.wikipedia.org/wiki/ISO_639-1代码列表",
 
   "settings.appearance.title": "色彩与样式",
   "settings.appearance.bgColor.label": "背景颜色",
@@ -314,6 +320,8 @@ export const I18N_DE: Record<I18nKey, string> = {
   "settings.languages.title": "Sprachen",
   "settings.languages.targets.label": "Zielsprachen",
   "settings.languages.targets.desc": "Kommagetrennte ISO-Sprachcodes (z. B. de, en, ru, fr, es, zh)",
+  "settings.languages.codesLink.text": "Liste der ISO-639-1-Sprachcodes",
+  "settings.languages.codesLink.url": "https://de.wikipedia.org/wiki/Liste_der_ISO-639-1-Codes",
 
   "settings.appearance.title": "Farben & Stil",
   "settings.appearance.bgColor.label": "Hintergrundfarbe",
@@ -397,6 +405,8 @@ export const I18N_ES: Record<I18nKey, string> = {
   "settings.languages.title": "Idiomas",
   "settings.languages.targets.label": "Idiomas de destino",
   "settings.languages.targets.desc": "Códigos de idioma ISO separados por comas (p. ej. es, en, ru, fr, de, zh)",
+  "settings.languages.codesLink.text": "Lista de códigos de idioma (ISO 639-1)",
+  "settings.languages.codesLink.url": "https://es.wikipedia.org/wiki/ISO_639-1",
 
   "settings.appearance.title": "Colores y estilo",
   "settings.appearance.bgColor.label": "Color de fondo",
@@ -480,6 +490,8 @@ export const I18N_FR: Record<I18nKey, string> = {
   "settings.languages.title": "Langues",
   "settings.languages.targets.label": "Langues cibles",
   "settings.languages.targets.desc": "Codes de langue ISO séparés par des virgules (ex. fr, en, ru, es, de, zh)",
+  "settings.languages.codesLink.text": "Liste des codes de langue (ISO 639-1)",
+  "settings.languages.codesLink.url": "https://fr.wikipedia.org/wiki/Liste_des_codes_ISO_639-1",
 
   "settings.appearance.title": "Couleurs et style",
   "settings.appearance.bgColor.label": "Couleur d'arrière-plan",
@@ -563,6 +575,8 @@ export const I18N_JA: Record<I18nKey, string> = {
   "settings.languages.title": "言語",
   "settings.languages.targets.label": "翻訳先言語",
   "settings.languages.targets.desc": "カンマ区切りの ISO 言語コード（例：ja, en, ru, zh, de, fr, es）",
+  "settings.languages.codesLink.text": "ISO 639-1 言語コード一覧",
+  "settings.languages.codesLink.url": "https://ja.wikipedia.org/wiki/ISO_639-1コード一覧",
 
   "settings.appearance.title": "カラーとスタイル",
   "settings.appearance.bgColor.label": "背景色",

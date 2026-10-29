@@ -20,6 +20,7 @@ interface Props {
   reset(): void
   t?: (key: string, params?: TranslationParams) => string
   locale?: () => string
+  openExternal?: (url: string) => void
 }
 
 const sectionHeader: Record<string, string> = {
@@ -289,6 +290,34 @@ export function SettingsView(props: Props) {
           <div style={labelStyle}>
             <span>{t("settings.languages.targets.label")}</span>
             <span style={subLabelStyle}>{t("settings.languages.targets.desc")}</span>
+            <a
+              href={t("settings.languages.codesLink.url")}
+              onClick={(e) => {
+                e.preventDefault()
+                const url = t("settings.languages.codesLink.url")
+                if (props.openExternal) {
+                  props.openExternal(url)
+                } else {
+                  window.open(url, "_blank", "noopener,noreferrer")
+                }
+              }}
+              style={{
+                "font-size": "11.5px",
+                color: "var(--text-interactive, #38bdf8)",
+                "text-decoration": "underline",
+                cursor: "pointer",
+                "margin-top": "2px",
+                display: "inline-flex",
+                "align-items": "center",
+                gap: "4px",
+                width: "fit-content",
+              }}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <span>🌐</span>
+              <span>{t("settings.languages.codesLink.text")} ↗</span>
+            </a>
           </div>
           <input
             type="text"
