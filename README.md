@@ -150,6 +150,10 @@ When the panel has focus (indicated by a green `[фокус]` badge in the top r
 
 If your terminal emulator (such as **Ghostty**, iTerm2, Alacritty, or Kitty) intercepts `Alt+T` for native window/tab shortcuts, you can easily customize all translation shortcuts:
 
+<p align="center">
+  <img src="assets/settings-keybindings.png" alt="Terminal (TUI) Keybindings Settings in OpenCode Desktop" width="620" />
+</p>
+
 1. **Via Desktop GUI Settings** (`Settings > Translation > Terminal (TUI) Keybindings`):
    - Edit **Translate Clipboard Hotkey** (e.g. `alt+y`, `ctrl+t`, `alt+c`).
    - Edit **Translate Last Turn Hotkey** (e.g. `alt+shift+y`, `ctrl+shift+t`).
@@ -208,16 +212,30 @@ You can customize everything in real-time with an **interactive Live Preview**:
   - `Fast MT Only`: Always use Google / MyMemory (fastest, zero LLM usage).
   - `Session LLM Only`: Always translate using the active session's model.
 - **LLM Fallback Timeout**: Configurable wait time (1.5s – 8.0s) before falling back to Google Translate.
-- **Theme Presets**: Switch instantly between *Amber Gold*, *Midnight OLED*, *Cyberpunk*, *Nordic Slate*, or *Paper Light*.
-- **Custom Colors**: Pick custom background, text, and accent/badge colors, and adjust backdrop opacity (40% – 100%).
+- **Theme Presets & Custom Colors**: Switch instantly between *Amber Gold*, *Midnight OLED*, *Cyberpunk*, *Nordic Slate*, or *Paper Light*, or pick custom background, text, and accent/badge colors, and adjust backdrop opacity (40% – 100%).
+
+<p align="center">
+  <img src="assets/settings-colors.png" alt="Colors & Style Settings" width="620" />
+</p>
+
 - **Position & Dimensions**:
   - Quote clearance height (20px – 100px).
   - Corner border-radius (0px – 24px).
   - Maximum tooltip width (300px – 800px).
   - Maximum tooltip height (200px – 700px).
   - Text font size (10px – 18px).
-- **Target Languages**: Edit comma-separated ISO language codes (e.g. `ru, en, de, fr, es, zh, ja, ko`). Supports **any language** understood by Google Translate (130+ languages) or your active LLM. Set a single code like `ru` to translate all foreign text (English, Chinese, etc.) strictly into Russian.
+
+<p align="center">
+  <img src="assets/settings-dimensions.png" alt="Position & Dimensions Settings" width="620" />
+</p>
+
+- **Target Languages**: Edit comma-separated ISO language codes (e.g. `ru, en, de, fr, es, zh, ja, ko`). Includes direct reference link to ISO 639-1 language codes. Supports **any language** understood by Google Translate (130+ languages) or your active LLM. Set a single code like `ru` to translate all foreign text (English, Chinese, etc.) strictly into Russian.
 - **Behavior**: Adjust selection debounce delay (60ms – 400ms) and character limits (200 – 2500).
+
+<p align="center">
+  <img src="assets/settings-behavior.png" alt="Behavior Settings" width="620" />
+</p>
+
 - **Reset**: Restore defaults with one click.
 
 All changes are saved automatically via OpenCode's `Store.global` and apply instantly without restarting OpenCode.
