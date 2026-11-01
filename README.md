@@ -1,5 +1,6 @@
 <div align="center">
-
+  
+<img width="1774" height="887" alt="Перевод выделенного текста — AI и LLM" src="https://github.com/user-attachments/assets/776b24ca-228b-4b5c-8fbb-55f3fc7bd534" />
 # opencode-translate-selection
 
 [![OpenCode Desktop](https://img.shields.io/badge/OpenCode_Desktop-v2.2.0+-blue.svg?logo=electron&logoColor=white)](https://opencode.ai/)
