@@ -29,6 +29,8 @@
 
 ## ✨ Features
 
+- **Master switch**: turn the selection tooltip on or off in Settings → Translation, or from the globe button in the sidebar header. Turning it off closes an open tooltip immediately; the TUI hotkeys are unchanged.
+
 - **Zero-friction workflow**: Just select text with your mouse. The translation appears automatically after a subtle 140ms debounce.
 - **Smart positioning**: Floats cleanly **above** the built-in `[ ❝ Quote ]` toolbar (`QUOTE_CLEARANCE = 52px`), without overlapping or jumping.
 - **Smart Hybrid Translation**:

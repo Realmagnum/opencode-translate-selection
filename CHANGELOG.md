@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.0] - 2026-11-15
+
+### Added
+
+- **Master on/off switch** in Settings → Translation, with a matching globe button in the sidebar header. The button is placed after the timestamps ring/clock when those plugins are installed, else before the panel toggle, and follows the app theme.
+- Turning translation off closes any open selection tooltip and stops new ones; the settings switch and the sidebar button share the same store, so either updates the other.
+- Localized the new strings in all seven catalogs (en, ru, zh, de, es, fr, ja).
+
+---
+
 ## [0.3.3] - 2026-10-29
 
 ### Added

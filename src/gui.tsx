@@ -2,7 +2,8 @@ import path from "node:path"
 import os from "node:os"
 import fs from "node:fs"
 import { Plugin, SettingsPage, Slot, Store, Style } from "@opencode/plugin/gui"
-import type { Persisted } from "@opencode/plugin/gui"
+import type { Persisted, SetupContext } from "@opencode/plugin/gui"
+import { createEffect, onCleanup } from "solid-js"
 import { Translate } from "./contract"
 import { SelectionPopup } from "./popup"
 import { translate } from "./translate"
@@ -47,6 +48,31 @@ const PLUGIN_GUI_STYLES = `
   width: 16px;
   height: 16px;
 }
+
+/* Sidebar header switch, matching the app's large icon buttons */
+.translate-header-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--v2-icon-icon-muted, light-dark(#5f5f5f, #8a8a8a));
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition: color 120ms ease, background-color 120ms ease, opacity 120ms ease;
+}
+.translate-header-toggle svg { width: 16px; height: 16px; }
+.translate-header-toggle:hover {
+  background: var(--v2-overlay-simple-overlay-hover, light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.06)));
+  color: var(--v2-text-text-base, light-dark(#1f1f1f, #eeeeee));
+}
+.translate-header-toggle[data-on="true"] { color: var(--v2-text-text-base, light-dark(#1f1f1f, #eeeeee)); }
+.translate-header-toggle[data-on="false"] { color: var(--v2-text-text-faint, light-dark(#6b6b6b, #8a8a8a)); opacity: 0.65; }
 `
 
 function setupExtensionSettingsGearInjection(pluginId: string, pageId: string) {
@@ -229,6 +255,8 @@ function SettingsTab(props: {
   )
 }
 
+const GLOBE_SVG = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="6.6"/><path d="M3.6 10h12.8M10 3.4c1.9 1.8 2.9 4 2.9 6.6s-1 4.8-2.9 6.6c-1.9-1.8-2.9-4-2.9-6.6s1-4.8 2.9-6.6Z"/></svg>`
+
 export default Plugin.define({
   stores: {
     settings: Store.global(SettingsSchema, DEFAULT_SETTINGS),
@@ -270,6 +298,89 @@ export default Plugin.define({
     }))
 
     setupExtensionSettingsGearInjection("translate-selection", "translate")
+    // A sidebar switch for the same `enabled` setting; it follows the
+    // timestamps clock/ring when those plugins are present, else the panel
+    // toggle, and is re-placed after each app re-render.
+    function setupSidebarToggle() {
+      if (typeof document === "undefined") return
+
+      let frame: number | undefined
+
+      const place = () => {
+        frame = undefined
+
+        const ring = document.querySelector<HTMLElement>('[data-ocst-kind="context-toggle"]')
+        const clock = document.querySelector<HTMLElement>('[data-ocst-kind="toggle"]')
+        const toggle = Array.from(
+          document.querySelectorAll<HTMLElement>('button[aria-controls="vertical-tabs-sidebar"]'),
+        ).find((element) => !element.closest('[data-slot="collapsed-sidebar-toggle"]'))
+        const wrapper = toggle?.parentElement
+        let button = document.querySelector<HTMLButtonElement>("[data-translate-header-toggle]")
+
+        if (!ring && !clock && !wrapper?.parentElement) {
+          button?.remove()
+
+          return
+        }
+
+        if (!button) {
+          button = document.createElement("button")
+          button.type = "button"
+          button.dataset.translateHeaderToggle = ""
+          button.className = "translate-header-toggle"
+          button.innerHTML = GLOBE_SVG
+          button.addEventListener("click", (event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            ctx.stores.settings.update((draft) => {
+              draft.enabled = !(draft.enabled ?? true)
+              return undefined
+            })
+          })
+        }
+
+        const pluginAnchor = ring ?? clock
+
+        if (pluginAnchor) {
+          if (pluginAnchor.nextElementSibling !== button) pluginAnchor.after(button)
+        } else if (wrapper?.parentElement) {
+          if (button.parentElement !== wrapper.parentElement || button.nextElementSibling !== wrapper) {
+            wrapper.parentElement.insertBefore(button, wrapper)
+          }
+        }
+
+        const enabled = ctx.stores.settings.value.enabled ?? true
+        const label = ctx.t(enabled ? "toggle.disable" : "toggle.enable")
+
+        button.dataset.on = enabled ? "true" : "false"
+        button.setAttribute("aria-pressed", enabled ? "true" : "false")
+        button.setAttribute("aria-label", label)
+
+        if (button.title !== label) button.title = label
+      }
+
+      const schedule = () => {
+        if (frame !== undefined) return
+        frame = requestAnimationFrame(place)
+      }
+
+      // The settings page toggles the same store, so repaint the switch on change.
+      createEffect(() => {
+        ctx.stores.settings.value.enabled
+        schedule()
+      })
+
+      const observer = new MutationObserver(schedule)
+      observer.observe(document.body, { childList: true, subtree: true })
+      place()
+
+      onCleanup(() => {
+        observer.disconnect()
+        if (frame !== undefined) cancelAnimationFrame(frame)
+      })
+    }
+
+    setupSidebarToggle()
   },
   main(ctx) {
     ctx.log.write("info", "translate-selection main ready", { version: ctx.app.version })
@@ -318,3 +429,4 @@ export default Plugin.define({
     })
   },
 })
+

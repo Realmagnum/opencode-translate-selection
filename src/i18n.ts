@@ -14,6 +14,12 @@ export const I18N_EN = {
   // Settings Header
   "settings.header.title": "Translation Tooltip Settings",
   "settings.header.desc": "Customize the inline translation popup appearance, target languages, positioning, and behavior.",
+  // General
+  "settings.general.title": "General",
+  "settings.enabled.label": "Enable translation",
+  "settings.enabled.desc": "Turn the selection tooltip on or off. The sidebar button toggles the same switch.",
+  "toggle.enable": "Enable translation",
+  "toggle.disable": "Disable translation",
 
   // Preview
   "settings.preview.title": "Live Preview",
@@ -113,6 +119,12 @@ export const I18N_RU: Record<I18nKey, string> = {
   // Settings Header
   "settings.header.title": "Настройки всплывающего переводчика",
   "settings.header.desc": "Настройте внешний вид всплывающего окна перевода, целевые языки, позиционирование и поведение.",
+  // General
+  "settings.general.title": "Основное",
+  "settings.enabled.label": "Включить перевод",
+  "settings.enabled.desc": "Включает и выключает подсказку при выделении текста. Кнопка в сайдбаре переключает то же самое.",
+  "toggle.enable": "Включить перевод",
+  "toggle.disable": "Выключить перевод",
 
   // Preview
   "settings.preview.title": "Интерактивный предпросмотр",
@@ -208,6 +220,12 @@ export const I18N_ZH: Record<I18nKey, string> = {
 
   "settings.header.title": "划词翻译弹窗设置",
   "settings.header.desc": "自定义浮动翻译弹窗的外观、目标语言、位置与交互行为。",
+  // General
+  "settings.general.title": "常规",
+  "settings.enabled.label": "启用翻译",
+  "settings.enabled.desc": "开启或关闭选中文本时的翻译弹窗。侧边栏按钮控制同一开关。",
+  "toggle.enable": "启用翻译",
+  "toggle.disable": "关闭翻译",
 
   "settings.preview.title": "实时预览",
   "settings.preview.sampleTitle": "核心特性：",
@@ -293,6 +311,12 @@ export const I18N_DE: Record<I18nKey, string> = {
 
   "settings.header.title": "Einstellungen für Übersetzungs-Tooltip",
   "settings.header.desc": "Passen Sie das Erscheinungsbild des Übersetzungs-Popups, Zielsprachen, Positionierung und Verhalten an.",
+  // General
+  "settings.general.title": "Allgemein",
+  "settings.enabled.label": "Übersetzung aktivieren",
+  "settings.enabled.desc": "Schaltet den Übersetzungs-Hinweis bei Textauswahl ein oder aus. Die Schaltfläche in der Seitenleiste steuert denselben Schalter.",
+  "toggle.enable": "Übersetzung aktivieren",
+  "toggle.disable": "Übersetzung deaktivieren",
 
   "settings.preview.title": "Live-Vorschau",
   "settings.preview.sampleTitle": "Wichtigste Funktionen:",
@@ -378,6 +402,12 @@ export const I18N_ES: Record<I18nKey, string> = {
 
   "settings.header.title": "Ajustes de la ventana emergente de traducción",
   "settings.header.desc": "Personaliza la apariencia de la ventana emergente de traducción, idiomas de destino, posición y comportamiento.",
+  // General
+  "settings.general.title": "General",
+  "settings.enabled.label": "Activar traducción",
+  "settings.enabled.desc": "Activa o desactiva la ventana de traducción al seleccionar texto. El botón de la barra lateral controla el mismo interruptor.",
+  "toggle.enable": "Activar traducción",
+  "toggle.disable": "Desactivar traducción",
 
   "settings.preview.title": "Vista previa en vivo",
   "settings.preview.sampleTitle": "Características clave:",
@@ -463,6 +493,12 @@ export const I18N_FR: Record<I18nKey, string> = {
 
   "settings.header.title": "Paramètres de l'infobulle de traduction",
   "settings.header.desc": "Personnalisez l'apparence du popup de traduction, les langues cibles, le positionnement et le comportement.",
+  // General
+  "settings.general.title": "Général",
+  "settings.enabled.label": "Activer la traduction",
+  "settings.enabled.desc": "Active ou désactive l'infobulle de traduction lors d'une sélection. Le bouton de la barre latérale contrôle le même réglage.",
+  "toggle.enable": "Activer la traduction",
+  "toggle.disable": "Désactiver la traduction",
 
   "settings.preview.title": "Aperçu en direct",
   "settings.preview.sampleTitle": "Fonctionnalités clés :",
@@ -548,6 +584,12 @@ export const I18N_JA: Record<I18nKey, string> = {
 
   "settings.header.title": "ポップアップ翻訳の設定",
   "settings.header.desc": "ポップアップ翻訳の外観、対象言語、表示位置、動作をカスタマイズします。",
+  // General
+  "settings.general.title": "一般",
+  "settings.enabled.label": "翻訳を有効化",
+  "settings.enabled.desc": "テキスト選択時の翻訳ポップアップをオン・オフします。サイドバーのボタンも同じ設定を切り替えます。",
+  "toggle.enable": "翻訳を有効化",
+  "toggle.disable": "翻訳を無効化",
 
   "settings.preview.title": "ライブプレビュー",
   "settings.preview.sampleTitle": "主な機能：",

@@ -8,6 +8,8 @@ export const EngineModeSchema = Schema.Union([
 export type EngineMode = "auto" | "fast" | "llm"
 
 export const SettingsSchema = Schema.Struct({
+  /** Master switch for the Desktop selection tooltip. */
+  enabled: Schema.optional(Schema.Boolean),
   engineMode: Schema.optional(EngineModeSchema),
   llmTimeoutMs: Schema.optional(Schema.Number),
   maxHeight: Schema.optional(Schema.Number),
@@ -31,6 +33,7 @@ export const SettingsSchema = Schema.Struct({
 export type StoredSettings = typeof SettingsSchema.Type
 
 export interface PluginSettings {
+  enabled: boolean
   engineMode: EngineMode
   llmTimeoutMs: number
   maxHeight: number
@@ -52,6 +55,7 @@ export interface PluginSettings {
 }
 
 export const DEFAULT_SETTINGS: PluginSettings = {
+  enabled: true,
   engineMode: "auto",
   llmTimeoutMs: 3500,
   maxHeight: 420,

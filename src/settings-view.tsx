@@ -136,6 +136,23 @@ export function SettingsView(props: Props) {
         </p>
       </div>
 
+      {/* Master switch */}
+      <div style={sectionHeader}>{t("settings.general.title")}</div>
+      <div style={cardStyle}>
+        <label style={fieldRow}>
+          <span style={labelStyle}>
+            <span>{t("settings.enabled.label")}</span>
+            <span style={subLabelStyle}>{t("settings.enabled.desc")}</span>
+          </span>
+          <input
+            type="checkbox"
+            checked={c().enabled}
+            onChange={(event) => props.update({ enabled: event.currentTarget.checked })}
+            style={{ width: "16px", height: "16px", cursor: "pointer" }}
+          />
+        </label>
+      </div>
+
       {/* Live Interactive Preview */}
       <div style={{ "margin-bottom": "24px" }}>
         <div style={{ "font-size": "12px", "font-weight": "600", "text-transform": "uppercase", "letter-spacing": "0.05em", color: "var(--text-subdued, #94a3b8)", "margin-bottom": "8px" }}>

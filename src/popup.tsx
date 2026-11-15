@@ -1,4 +1,4 @@
-import { For, Show, createSignal, onCleanup, onMount } from "solid-js"
+import { For, Show, createEffect, createSignal, onCleanup, onMount } from "solid-js"
 import { Portal } from "solid-js/web"
 import type { TranslateOutput } from "./contract"
 import type { PluginSettings } from "./settings"
@@ -231,6 +231,7 @@ export function SelectionPopup(props: {
 
   const read = () => {
     const currentCfg = cfg()
+    if (!currentCfg.enabled) return
     const selection = window.getSelection()
     if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
       props.debug?.("translate: no selection")
@@ -278,6 +279,7 @@ export function SelectionPopup(props: {
   }
 
   const onMouseUp = (event: MouseEvent) => {
+    if (!cfg().enabled) return
     if (root && event.target instanceof Node && root.contains(event.target)) return
 
     clearTimeout(readTimer)
@@ -301,6 +303,11 @@ export function SelectionPopup(props: {
   const onScrollOrResize = () => {
     if (view()) hide()
   }
+
+  // The switch can turn translation off while a tooltip is open.
+  createEffect(() => {
+    if (!cfg().enabled) hide()
+  })
 
   onMount(() => {
     document.addEventListener("mouseup", onMouseUp, true)
