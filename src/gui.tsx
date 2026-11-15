@@ -63,9 +63,12 @@ const PLUGIN_GUI_STYLES = `
   background: transparent;
   color: var(--v2-icon-icon-muted, light-dark(#5f5f5f, #8a8a8a));
   cursor: pointer;
+  app-region: no-drag;
   -webkit-app-region: no-drag;
+  pointer-events: auto;
   transition: color 120ms ease, background-color 120ms ease, opacity 120ms ease;
 }
+.translate-header-toggle * { app-region: no-drag; -webkit-app-region: no-drag; pointer-events: none; }
 .translate-header-toggle svg { width: 16px; height: 16px; }
 .translate-header-toggle:hover {
   background: var(--v2-overlay-simple-overlay-hover, light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.06)));
@@ -305,6 +308,34 @@ export default Plugin.define({
       if (typeof document === "undefined") return
 
       let frame: number | undefined
+      let lastToggle = 0
+
+      const toggleEnabled = () => {
+        const now = Date.now()
+
+        if (now - lastToggle < 300) return
+        lastToggle = now
+
+        const current = ctx.stores.settings.value.enabled ?? true
+
+        ctx.stores.settings.update((draft) => {
+          draft.enabled = !current
+          return undefined
+        })
+        console.info("[translate-selection] enabled", !current)
+
+        const button = document.querySelector<HTMLButtonElement>("[data-translate-header-toggle]")
+
+        if (button) {
+          const label = ctx.t(!current ? "toggle.disable" : "toggle.enable")
+          button.dataset.on = !current ? "true" : "false"
+          button.setAttribute("aria-pressed", !current ? "true" : "false")
+          button.setAttribute("aria-label", label)
+          button.title = label
+        }
+
+        schedule()
+      }
 
       const place = () => {
         frame = undefined
@@ -332,10 +363,7 @@ export default Plugin.define({
           button.addEventListener("click", (event) => {
             event.preventDefault()
             event.stopPropagation()
-            ctx.stores.settings.update((draft) => {
-              draft.enabled = !(draft.enabled ?? true)
-              return undefined
-            })
+            toggleEnabled()
           })
         }
 
@@ -370,11 +398,26 @@ export default Plugin.define({
         schedule()
       })
 
+      // The header is an Electron drag region and the button can be re-created
+      // by an app render; a capture-phase pointerdown on the document survives
+      // both, unlike a click bound to the button instance.
+      const onPointerDown = (event: PointerEvent) => {
+        const target = event.target instanceof Element ? event.target.closest("[data-translate-header-toggle]") : null
+
+        if (!target) return
+        event.preventDefault()
+        event.stopPropagation()
+        toggleEnabled()
+      }
+
+      document.addEventListener("pointerdown", onPointerDown, true)
+
       const observer = new MutationObserver(schedule)
       observer.observe(document.body, { childList: true, subtree: true })
       place()
 
       onCleanup(() => {
+        document.removeEventListener("pointerdown", onPointerDown, true)
         observer.disconnect()
         if (frame !== undefined) cancelAnimationFrame(frame)
       })

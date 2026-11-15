@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.1] - 2026-11-15
+
+### Fixed
+
+- **Sidebar switch did nothing.** The header is an Electron drag region, and the button could be re-created by an app render between press and release, so its `click` never reached the handler. The switch now uses the standard `app-region: no-drag` alongside the legacy property, ignores pointer events on its SVG, and toggles from a capture-phase `pointerdown` delegate with a 300 ms double-fire guard. A `[translate-selection] enabled` line in the renderer log confirms the handler ran.
+
+---
+
 ## [0.4.0] - 2026-11-15
 
 ### Added
