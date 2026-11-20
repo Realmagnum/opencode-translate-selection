@@ -1,9 +1,10 @@
+import { createEffect, onCleanup } from "solid-js"
 import path from "node:path"
 import os from "node:os"
 import fs from "node:fs"
 import { Plugin, SettingsPage, Slot, Store, Style } from "@opencode/plugin/gui"
+import { createMutationGate } from "opencode-plugin-dom"
 import type { Persisted, SetupContext } from "@opencode/plugin/gui"
-import { createEffect, onCleanup } from "solid-js"
 import { Translate } from "./contract"
 import { SelectionPopup } from "./popup"
 import { translate } from "./translate"
@@ -24,32 +25,8 @@ const PLUGIN_GUI_STYLES = `
   color: #9d7cd8 !important;
 }
 
-/* Plugin settings gear button in Extensions -> Plugins list */
-.plugin-settings-gear-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border-radius: 4px;
-  background: transparent;
-  border: none;
-  color: var(--v2-text-text-muted, #8a8a8a);
-  cursor: pointer;
-  transition: color 0.15s ease, background-color 0.15s ease;
-  flex-shrink: 0;
-}
-.plugin-settings-gear-btn:hover {
-  color: #b392f0 !important;
-  background-color: var(--v2-background-bg-layer-02, rgba(255, 255, 255, 0.08));
-}
-.plugin-settings-gear-btn svg {
-  width: 16px;
-  height: 16px;
-}
-
-/* Sidebar header switch, matching the app's large icon buttons */
+/* The switch sits beside the sidebar title controls, styled as a ghost button
+   like the Session Timestamps clock. */
 .translate-header-toggle {
   display: inline-flex;
   align-items: center;
@@ -65,12 +42,11 @@ const PLUGIN_GUI_STYLES = `
   cursor: pointer;
   app-region: no-drag;
   -webkit-app-region: no-drag;
-  pointer-events: auto;
   transition: color 120ms ease, background-color 120ms ease, opacity 120ms ease;
 }
-.translate-header-toggle * { app-region: no-drag; -webkit-app-region: no-drag; pointer-events: none; }
-.translate-header-toggle svg { width: 16px; height: 16px; }
-.translate-header-toggle:hover {
+.translate-header-toggle svg { width: 16px; height: 16px; pointer-events: none; }
+.translate-header-toggle:hover,
+.translate-header-toggle:focus-visible {
   background: var(--v2-overlay-simple-overlay-hover, light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.06)));
   color: var(--v2-text-text-base, light-dark(#1f1f1f, #eeeeee));
 }
@@ -78,60 +54,6 @@ const PLUGIN_GUI_STYLES = `
 .translate-header-toggle[data-on="false"] { color: var(--v2-text-text-faint, light-dark(#6b6b6b, #8a8a8a)); opacity: 0.65; }
 `
 
-function setupExtensionSettingsGearInjection(pluginId: string, pageId: string) {
-  if (typeof document === "undefined") return
-
-  const GEAR_SVG = `<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.62516 4.46094L5.05225 3.86719L3.86475 5.05469L4.4585 7.6276L2.0835 9.21094V10.7943L4.4585 12.3776L3.86475 14.9505L5.05225 16.138L7.62516 15.5443L9.2085 17.9193H10.7918L12.3752 15.5443L14.9481 16.138L16.1356 14.9505L15.5418 12.3776L17.9168 10.7943V9.21094L15.5418 7.6276L16.1356 5.05469L14.9481 3.86719L12.3752 4.46094L10.7918 2.08594H9.2085L7.62516 4.46094Z" stroke="currentColor"/><path d="M12.5002 10.0026C12.5002 11.3833 11.3809 12.5026 10.0002 12.5026C8.61945 12.5026 7.50016 11.3833 7.50016 10.0026C7.50016 8.62189 8.61945 7.5026 10.0002 7.5026C11.3809 7.5026 12.5002 8.62189 12.5002 10.0026Z" stroke="currentColor"/></svg>`
-
-  function navigateToSettings() {
-    const trigger = document.querySelector(
-      `.settings-nav-groups [data-slot="tabs-v2-trigger-wrapper"][data-value="${pageId}"] button, .settings-nav-groups [data-slot="tabs-v2-trigger-wrapper"][data-value="${pageId}"] [data-slot="tabs-v2-trigger"]`
-    ) as HTMLElement | null
-
-    if (trigger) {
-      trigger.click()
-      return
-    }
-
-    const url = new URL(window.location.href)
-    url.searchParams.set("tab", pageId)
-    window.history.pushState({}, "", url.toString())
-    window.dispatchEvent(new PopStateEvent("popstate"))
-  }
-
-  function injectGearButton() {
-    const rows = document.querySelectorAll(".settings-extension-row")
-    for (const row of Array.from(rows)) {
-      const nameEl = row.querySelector(".settings-extension-name")
-      if (!nameEl) continue
-
-      const text = nameEl.textContent?.trim() || ""
-      if (text.includes(pluginId)) {
-        const actions = row.querySelector(".settings-servers-actions")
-        if (actions && !actions.querySelector(`.${pageId}-settings-btn`)) {
-          const btn = document.createElement("button")
-          btn.type = "button"
-          btn.className = `plugin-settings-gear-btn ${pageId}-settings-btn`
-          btn.title = "Open settings"
-          btn.setAttribute("aria-label", "Open settings")
-          btn.innerHTML = GEAR_SVG
-
-          btn.addEventListener("click", (e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            navigateToSettings()
-          })
-
-          actions.insertBefore(btn, actions.firstElementChild)
-        }
-      }
-    }
-  }
-
-  injectGearButton()
-  const observer = new MutationObserver(() => injectGearButton())
-  observer.observe(document.body, { childList: true, subtree: true })
-}
 
 function TranslationSurface(props: {
   store: Persisted<StoredSettings>
@@ -300,15 +222,20 @@ export default Plugin.define({
       ),
     }))
 
-    setupExtensionSettingsGearInjection("translate-selection", "translate")
-    // A sidebar switch for the same `enabled` setting; it follows the
-    // timestamps clock/ring when those plugins are present, else the panel
-    // toggle, and is re-placed after each app re-render.
-    function setupSidebarToggle() {
+    // The sidebar header has no plugin slot, so the enable switch is this
+    // plugin's own button beside the Session Timestamps clock. Nothing the host
+    // owns is moved: relocating its TitlebarItem made the host rebuild it under
+    // the pointer, and the two fought at the pass rate. The gate wakes only for
+    // a batch that can move the button, at most once per interval.
+    function setupHeaderSwitch() {
       if (typeof document === "undefined") return
 
-      let frame: number | undefined
+      const HEADER_ANCHOR =
+        '[data-ocst-kind="context-toggle"], [data-ocst-kind="toggle"], button[aria-controls="vertical-tabs-sidebar"]'
+      let button: HTMLButtonElement | undefined
       let lastToggle = 0
+
+      const enabled = () => ctx.stores.settings.value.enabled ?? true
 
       const toggleEnabled = () => {
         const now = Date.now()
@@ -316,114 +243,145 @@ export default Plugin.define({
         if (now - lastToggle < 300) return
         lastToggle = now
 
-        const current = ctx.stores.settings.value.enabled ?? true
+        const current = enabled()
 
         ctx.stores.settings.update((draft) => {
           draft.enabled = !current
           return undefined
         })
         console.info("[translate-selection] enabled", !current)
-
-        const button = document.querySelector<HTMLButtonElement>("[data-translate-header-toggle]")
-
-        if (button) {
-          const label = ctx.t(!current ? "toggle.disable" : "toggle.enable")
-          button.dataset.on = !current ? "true" : "false"
-          button.setAttribute("aria-pressed", !current ? "true" : "false")
-          button.setAttribute("aria-label", label)
-          button.title = label
-        }
-
-        schedule()
       }
 
-      const place = () => {
-        frame = undefined
+      const ensure = () => {
+        if (button) return button
 
+        button = document.createElement("button")
+        button.type = "button"
+        button.dataset.translateHeaderToggle = ""
+        button.className = "translate-header-toggle"
+        button.innerHTML = GLOBE_SVG
+        button.addEventListener("click", (event) => {
+          event.preventDefault()
+          event.stopPropagation()
+          toggleEnabled()
+        })
+
+        return button
+      }
+
+      /** Where the button goes while the header is on screen. */
+      const header = () => {
         const ring = document.querySelector<HTMLElement>('[data-ocst-kind="context-toggle"]')
         const clock = document.querySelector<HTMLElement>('[data-ocst-kind="toggle"]')
+        const anchor = ring ?? clock
+
+        if (anchor?.parentElement) return { container: anchor.parentElement as HTMLElement, after: anchor }
+
         const toggle = Array.from(
           document.querySelectorAll<HTMLElement>('button[aria-controls="vertical-tabs-sidebar"]'),
         ).find((element) => !element.closest('[data-slot="collapsed-sidebar-toggle"]'))
         const wrapper = toggle?.parentElement
-        let button = document.querySelector<HTMLButtonElement>("[data-translate-header-toggle]")
 
-        if (!ring && !clock && !wrapper?.parentElement) {
-          button?.remove()
+        if (wrapper?.parentElement) return { container: wrapper.parentElement, before: wrapper }
+
+        return undefined
+      }
+
+      const paint = (element: HTMLButtonElement) => {
+        const on = enabled()
+        const label = ctx.t(on ? "toggle.disable" : "toggle.enable")
+
+        element.dataset.on = on ? "true" : "false"
+        element.setAttribute("aria-pressed", on ? "true" : "false")
+        element.setAttribute("aria-label", label)
+
+        if (element.title !== label) element.title = label
+      }
+
+      /**
+       * True when `element` sits before `other` among the same parent's children.
+       * A sibling walk, not `compareDocumentPosition`: the header is a handful of
+       * children, and the check stays easy to test with a fake DOM.
+       */
+      const elementPrecedes = (element: Element, other: Element) => {
+        if (element === other || element.parentElement !== other.parentElement) return false
+
+        for (let node = element.nextElementSibling; node; node = node.nextElementSibling) {
+          if (node === other) return true
+        }
+
+        return false
+      }
+
+      const place = () => {
+        const element = ensure()
+
+        paint(element)
+
+        const slot = header()
+
+        if (!slot) {
+          element.remove()
 
           return
         }
 
-        if (!button) {
-          button = document.createElement("button")
-          button.type = "button"
-          button.dataset.translateHeaderToggle = ""
-          button.className = "translate-header-toggle"
-          button.innerHTML = GLOBE_SVG
-          button.addEventListener("click", (event) => {
-            event.preventDefault()
-            event.stopPropagation()
-            toggleEnabled()
-          })
+        if (slot.after) {
+          // "Somewhere after the anchor" rather than "immediately after it": another
+          // plugin may insert its own control in between, and demanding the exact
+          // sibling made the two re-insert themselves at the pass rate.
+          if (!elementPrecedes(slot.after, element)) slot.after.after(element)
+        } else if (element.parentElement !== slot.container || element.nextSibling !== slot.before) {
+          slot.container.insertBefore(element, slot.before ?? null)
         }
+      }
 
-        const pluginAnchor = ring ?? clock
+      // Runs for every batch, so it does no lookup of its own: only a change inside
+      // the header, or to the button itself, can move it.
+      const relevant = (records: readonly MutationRecord[]) => {
+        for (const record of records) {
+          if (record.type !== "childList") continue
 
-        if (pluginAnchor) {
-          if (pluginAnchor.nextElementSibling !== button) pluginAnchor.after(button)
-        } else if (wrapper?.parentElement) {
-          if (button.parentElement !== wrapper.parentElement || button.nextElementSibling !== wrapper) {
-            wrapper.parentElement.insertBefore(button, wrapper)
+          const target = record.target
+
+          if (!(target instanceof Element)) continue
+          if (target === document.body) return true
+          if (target.closest(HEADER_ANCHOR)) return true
+          if (button && (target === button || button.contains(target))) return true
+
+          for (const added of record.addedNodes) {
+            if (added === button) return true
+            if (added instanceof Element && added.querySelector(HEADER_ANCHOR)) return true
+          }
+
+          for (const removed of record.removedNodes) {
+            if (removed === button) return true
+            if (removed instanceof Element && removed.querySelector(HEADER_ANCHOR)) return true
           }
         }
 
-        const enabled = ctx.stores.settings.value.enabled ?? true
-        const label = ctx.t(enabled ? "toggle.disable" : "toggle.enable")
-
-        button.dataset.on = enabled ? "true" : "false"
-        button.setAttribute("aria-pressed", enabled ? "true" : "false")
-        button.setAttribute("aria-label", label)
-
-        if (button.title !== label) button.title = label
+        return false
       }
 
-      const schedule = () => {
-        if (frame !== undefined) return
-        frame = requestAnimationFrame(place)
-      }
+      const gate = createMutationGate({ run: place, relevant, interval: 250 })
 
-      // The settings page toggles the same store, so repaint the switch on change.
+      // The switch follows the setting and the locale, repainting on its own
+      // rather than waiting for a DOM batch.
       createEffect(() => {
         ctx.stores.settings.value.enabled
-        schedule()
+        ctx.locale.locale()
+        gate.schedule()
       })
 
-      // The header is an Electron drag region and the button can be re-created
-      // by an app render; a capture-phase pointerdown on the document survives
-      // both, unlike a click bound to the button instance.
-      const onPointerDown = (event: PointerEvent) => {
-        const target = event.target instanceof Element ? event.target.closest("[data-translate-header-toggle]") : null
-
-        if (!target) return
-        event.preventDefault()
-        event.stopPropagation()
-        toggleEnabled()
-      }
-
-      document.addEventListener("pointerdown", onPointerDown, true)
-
-      const observer = new MutationObserver(schedule)
-      observer.observe(document.body, { childList: true, subtree: true })
       place()
 
       onCleanup(() => {
-        document.removeEventListener("pointerdown", onPointerDown, true)
-        observer.disconnect()
-        if (frame !== undefined) cancelAnimationFrame(frame)
+        gate.stop()
+        button?.remove()
       })
     }
 
-    setupSidebarToggle()
+    setupHeaderSwitch()
   },
   main(ctx) {
     ctx.log.write("info", "translate-selection main ready", { version: ctx.app.version })

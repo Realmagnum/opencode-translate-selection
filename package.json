@@ -54,7 +54,8 @@
     "watch": "vite build --watch",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test \"test/**/*.test.ts\"",
-    "ci": "npm run typecheck && npm test && npm run build"
+    "ci": "npm run typecheck && npm test && npm run build",
+    "check:dom": "node ../opencode-plugin-dom/scripts/check-dom.mjs ."
   },
   "engines": {
     "node": ">=22"
@@ -65,7 +66,8 @@
     "solid-js": ">=1.9.0"
   },
   "dependencies": {
-    "@opencode/plugin": "^2.2.0"
+    "@opencode/plugin": "^2.2.0",
+    "opencode-plugin-dom": "file:../opencode-plugin-dom"
   },
   "devDependencies": {
     "@babel/core": "^8.0.9",
